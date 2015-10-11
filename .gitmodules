@@ -1,0 +1,18 @@
+[submodule ".deps/github.com~pinf~pinf-for-nodejs~0/source/installed/master"]
+	path = .deps/github.com~pinf~pinf-for-nodejs~0/source/installed/master
+	url = git://github.com/pinf/pinf-for-nodejs.git
+[submodule ".deps/github.com~pinf~pinf-loader-js~0/source/installed/master"]
+	path = .deps/github.com~pinf~pinf-loader-js~0/source/installed/master
+	url = git://github.com/pinf/pinf-loader-js.git
+[submodule ".deps/github.com~pinf~pinf-loader-secure-js~0/source/installed/master"]
+	path = .deps/github.com~pinf~pinf-loader-secure-js~0/source/installed/master
+	url = git://github.com/pinf/pinf-loader-secure-js.git
+[submodule ".deps/github.com~pinf-it~pinf-it-bundler~0/source/installed/master"]
+	path = .deps/github.com~pinf-it~pinf-it-bundler~0/source/installed/master
+	url = git://github.com/pinf-it/pinf-it-bundler.git
+[submodule ".deps/github.com~pinf-it~pinf-it-module-insight~0/source/installed/master"]
+	path = .deps/github.com~pinf-it~pinf-it-module-insight~0/source/installed/master
+	url = git://github.com/pinf-it/pinf-it-module-insight.git
+[submodule ".deps/github.com~pinf-it~pinf-it-package-insight~0/source/installed/master"]
+	path = .deps/github.com~pinf-it~pinf-it-package-insight~0/source/installed/master
+	url = git://github.com/pinf-it/pinf-it-package-insight.git

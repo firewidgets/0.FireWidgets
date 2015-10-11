@@ -1,0 +1,15 @@
+{
+    "@": {
+        "$": [
+            [
+                "../components/0.CloudIDE/for/pinf.genesis/stack.proto.ccjson",
+                {
+                    "namespace": "0.FireWidgets",
+                    "name": "0.FireWidgets",
+                    "stackBasePath": "{{__DIRNAME__}}",
+                    "subUri": "/0.FireWidgets"
+                }
+            ]
+        ]
+    }
+}

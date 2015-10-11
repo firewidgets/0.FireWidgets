@@ -1,0 +1,50 @@
+{
+    "@github.com~sourcemint~sm.expand~0/map": {
+        "@github.com~sourcemint~sm.expand~0/locations": {
+            "binaries": "node_modules/.bin/{bin}",
+            "mappings": "node_modules/{alias}",
+            "registries": "{{env.HOME}}/.bash.origin.cache/{uid}/source/installed/{rev}",
+            "sources": ".deps/{uid}/source/installed/{rev}"
+        },
+        "mappings": {
+            "pinf-for-nodejs": "github.com~pinf~pinf-for-nodejs~0/master",
+            "pinf-loader-js": "github.com~pinf~pinf-loader-js~0/master",
+            "pinf-loader-secure-js": "github.com~pinf~pinf-loader-secure-js~0/master",
+            "pinf-it-bundler": "github.com~pinf-it~pinf-it-bundler~0/master",
+            "pinf-it-module-insight": "github.com~pinf-it~pinf-it-module-insight~0/master",
+            "pinf-it-package-insight": "github.com~pinf-it~pinf-it-package-insight~0/master"
+        },
+        "sources": {
+            "github.com~pinf~pinf-for-nodejs~0": {
+                "master": {
+                    "uri": "git://git@github.com:pinf/pinf-for-nodejs.git#(master)"
+                }
+            },
+            "github.com~pinf~pinf-loader-js~0": {
+                "master": {
+                    "uri": "git://git@github.com:pinf/pinf-loader-js.git#(master)"
+                }
+            },
+            "github.com~pinf~pinf-loader-secure-js~0": {
+                "master": {
+                    "uri": "git://git@github.com:pinf/pinf-loader-secure-js.git#(master)"
+                }
+            },
+            "github.com~pinf-it~pinf-it-bundler~0": {
+                "master": {
+                    "uri": "git://git@github.com:pinf-it/pinf-it-bundler.git#(master)"
+                }
+            },
+            "github.com~pinf-it~pinf-it-module-insight~0": {
+                "master": {
+                    "uri": "git://git@github.com:pinf-it/pinf-it-module-insight.git#(master)"
+                }
+            },
+            "github.com~pinf-it~pinf-it-package-insight~0": {
+                "master": {
+                    "uri": "git://git@github.com:pinf-it/pinf-it-package-insight.git#(master)"
+                }
+            }
+        }
+    }
+}
