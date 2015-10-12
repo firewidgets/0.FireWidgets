@@ -1,0 +1,14 @@
+{
+    "config": {
+	    "sm.hoist.visualcomponents/0": {
+	    	"pages": {
+	    		"index": {
+	    			"source": "/index.html"
+    			}
+	    	},
+	    	"resources": {
+	    		"import": false
+	    	}
+	    }
+	}
+}

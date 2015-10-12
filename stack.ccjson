@@ -10,6 +10,22 @@
                     "subUri": "/0.FireWidgets"
                 }
             ]
-        ]
+        ],
+        "export.0.FireWidgets": {
+            "$": "./Aspects/export/server.plugin.ccjson"
+        }
+    },
+    "@export.0.FireWidgets": {
+        "$0.FireWidgets.export.0.FireWidgets": {
+            "$0.FireWidgets.static.fs.components.path()->basePaths/Components": {},
+            "$0.FireWidgets.static.fs.components.dist.path()->distPath": {}
+        }
+    },
+    "@route.express": {
+        "$0.FireWidgets.routes.export": {
+            "$0.FireWidgets.export.0.FireWidgets.app()->impls/0.FireWidgets": {
+                "match": "^/0.FireWidgets/(.+)$"
+            }
+        }
     }
 }

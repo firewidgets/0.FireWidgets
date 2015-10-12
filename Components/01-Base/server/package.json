@@ -1,0 +1,8 @@
+{
+  "main": "./main.js",
+  "exports": {
+    "bundles": {
+      "main.js": "./main.js"
+    }
+  }
+}

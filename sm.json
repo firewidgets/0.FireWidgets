@@ -3,7 +3,7 @@
         "@github.com~sourcemint~sm.expand~0/locations": {
             "binaries": "node_modules/.bin/{bin}",
             "mappings": "node_modules/{alias}",
-            "registries": "{{env.HOME}}/.bash.origin.cache/{uid}/source/installed/{rev}",
+            "registries": "{{env.WORKSPACE_DIR}}/.bash.origin.cache/{uid}/source/installed/{rev}",
             "sources": ".deps/{uid}/source/installed/{rev}"
         },
         "mappings": {
@@ -17,31 +17,37 @@
         "sources": {
             "github.com~pinf~pinf-for-nodejs~0": {
                 "master": {
+                    "installer": "npm",
                     "uri": "git://git@github.com:pinf/pinf-for-nodejs.git#(master)"
                 }
             },
             "github.com~pinf~pinf-loader-js~0": {
                 "master": {
+                    "installer": "npm",
                     "uri": "git://git@github.com:pinf/pinf-loader-js.git#(master)"
                 }
             },
             "github.com~pinf~pinf-loader-secure-js~0": {
                 "master": {
+                    "installer": "npm",
                     "uri": "git://git@github.com:pinf/pinf-loader-secure-js.git#(master)"
                 }
             },
             "github.com~pinf-it~pinf-it-bundler~0": {
                 "master": {
+                    "installer": "npm",
                     "uri": "git://git@github.com:pinf-it/pinf-it-bundler.git#(master)"
                 }
             },
             "github.com~pinf-it~pinf-it-module-insight~0": {
                 "master": {
+                    "installer": "npm",
                     "uri": "git://git@github.com:pinf-it/pinf-it-module-insight.git#(master)"
                 }
             },
             "github.com~pinf-it~pinf-it-package-insight~0": {
                 "master": {
+                    "installer": "npm",
                     "uri": "git://git@github.com:pinf-it/pinf-it-package-insight.git#(master)"
                 }
             }
