@@ -44,27 +44,17 @@ exports.forLib = function (LIB) {
 // TODO: Get these from config
 					var KEYS = ECC.generate(ECC.SIG_VER);
 
-					function getBrowserBundlerApp (programGroup, programAlias) {
+					function getBrowserBundlerApp (programGroupPath, programAlias) {
 						if (!getBrowserBundlerApp._app) {
 							getBrowserBundlerApp._app = {};
 						}
-						var programKey = programGroup + ":" + programAlias;
+						var programKey = programGroupPath + ":" + programAlias;
 						if (!getBrowserBundlerApp._app[programKey]) {
-							
-							var programGroupPath = config.basePaths[programGroup];
-							if (!programGroupPath) {
-								getBrowserBundlerApp._app[programKey] = function (req, res, next) {
-									console.error("No programs found for group '" + programGroup + "' while servicing program '" + programAlias + "' and uri '/" + req.params[0] + "'");
-									res.writeHead(404);
-									res.end("Not Found");
-									return;
-								};
-							}
 
 				    		var path = LIB.path.join(programGroupPath, programAlias);
 
 				    		console.log("Mount program '" + programAlias + "' from path '" + path + "'");
-				    		
+
 				    		var programDescriptorPath = LIB.path.join(path, "window.program.json");
 
 							// TODO: Use program descriptor for owning/parent/container application instead of
@@ -78,7 +68,34 @@ exports.forLib = function (LIB) {
 										PINF_RUNTIME: "",
 								        $pinf: pinfContext,
 								        waitForBuild: true,
-								        autoloadSourceChanges: true
+								        autoloadSourceChanges: true,
+								        plugins: {
+								        	"require": {
+								        		"chscript": {
+								        			"#pinf-it-bundler": {
+								        				process: function (descriptor, callback) {
+
+								        					function preprocess (code) {
+								        						return config.plugins.require['chscript.preprocess'](code);
+								        					}
+
+								        					return preprocess(descriptor.code).then(function (code) {
+
+																return config.plugins.require.chscript(code).then(function (code) {
+
+																	descriptor.code = code;
+	
+																	descriptor.syntax = "javascript";
+																	descriptor.format = "commonjs";
+	
+																	return callback(null);
+																}).catch(callback);
+								        					});
+								        				}
+								        			}
+								        		}
+								        	}
+								        }
 								    })),
 									{
 										keys: KEYS
@@ -92,6 +109,7 @@ exports.forLib = function (LIB) {
 
 
                     return LIB.Promise.resolve({
+                    	// TODO: Use '#responder.app' or equivalent API contract
                         app: function () {
                             return LIB.Promise.resolve(
                                 ccjson.makeDetachedFunction(
@@ -110,14 +128,30 @@ exports.forLib = function (LIB) {
                                         }
 
                                         var uriParts = uri.split("/");
-                                        var programGroup = uriParts.shift();
-                                        var programAlias = uriParts.shift();
+                                        
+                                        // Determine the longest matching program group
+                                        var programGroup = null;
+                                        var programAlias = null;
+                                        for (var i=uriParts.length ; i>0 ; i--) {
+                                        	if (config.basePaths[uriParts.slice(0, i).join("/")]) {
+                                        		programGroup = uriParts.splice(0, i).join("/");
+                                        		programAlias = uriParts.shift().replace(/~/g, "/");
+                                        		break;
+                                        	}
+                                        }
+                                        if (!programGroup) {
+											console.error("No programs found while servicing uri '/" + req.params[0] + "'");
+											res.writeHead(404);
+											res.end("Not Found");
+											return;
+                                        }
+
                                         req.url = "/" + uriParts.join("/");
                                         req.params = [
                                         	uriParts.join("/")
                             	    	];
 
-                                        return getBrowserBundlerApp(programGroup, programAlias).then(function (app) {
+                                        return getBrowserBundlerApp(config.basePaths[programGroup], programAlias).then(function (app) {
                                         	return app(req, res, next);
                                         }).catch(next);
                             	    }
@@ -133,229 +167,3 @@ exports.forLib = function (LIB) {
         }
     });
 }
-
-
-
-
-/*
-
-const PATH = require("path");
-const FS = require("fs-extra");
-const PINF = require("pinf-for-nodejs");
-const VM = require("pinf-for-nodejs/lib/vm").VM;
-const EXPRESS = require("express");
-const COMPRESSION = require('compression');
-const SEND = require("send");
-const HTTP = require("http");
-const SECURE_MIDDLEWARE = require("pinf-loader-secure-js/server/middleware");
-const ECC = require("pinf-loader-secure-js/client/ecc");
-
-
-const PORT = process.env.PORT || 8080;
-
-
-exports.FS = FS;
-exports.PINF = PINF;
-
-FS.removeSync(PATH.join(__dirname, "client/.rt"));
-FS.removeSync(PATH.join(__dirname, "client/bundles"));
-
-exports.main = function(options, callback) {
-
-	var app = EXPRESS();
-
-	app.use(COMPRESSION());
-
-	app.get(/^\/lib\/pinf-loader-js\/(.+)$/, function (req, res, next) {
-		return SEND(req, req.params[0], {
-			root: PATH.join(__dirname, "node_modules/pinf-loader-js")
-		}).on("error", next).pipe(res);
-	});
-
-//console.log("options", options);
-
-
-	var programInfo = options.$pinf.getProgramInfo();
-
-
-
-	app.get(/^\/(boot.+)$/, PINF.hoist(PATH.join(__dirname, "./client/program.json"), options.$pinf.makeOptions({
-		debug: true,
-		verbose: true,
-		PINF_RUNTIME: "",
-        $pinf: options.$pinf
-    })));
-
-
-
-	// Watch loaded files for changes and kill process if detected.
-	var files = {};
-	function monitorChildren (node) {
-		if (node.filename) {
-			files[node.filename] = true;
-		}
-		if (!node.children) return;
-		node.children.forEach(monitorChildren);
-	}
-	monitorChildren(module);
-	function checkFiles () {
-		function checkFile (path) {
-			FS.stat(path, function (err, stat) {
-				if (err) return;
-				if (files[path] === true) {
-					files[path] = stat.mtime.getTime();
-				}
-				if (files[path] !== stat.mtime.getTime()) {
-					console.log("Commit suicide as a source file '" + path + "' has changed ('" + stat.mtime + "' !== '" + files[path] + "').");
-					process.exit(0);
-				}
-			});
-		}
-		for (var path in files) {
-			checkFile(path);
-		}
-	}
-	setInterval(checkFiles, 5 * 1000);
-
-
-
-
-	var KEYS = ECC.generate(ECC.SIG_VER);
-
-    if (
-    	programInfo.program.descriptor.config["dp.server"] &&
-    	programInfo.program.descriptor.config["dp.server"].client &&
-    	programInfo.program.descriptor.config["dp.server"].client.programs
-    ) {
-    	var programs = programInfo.program.descriptor.config["dp.server"].client.programs;
-    	for (var id in programs) {
-    		var path = PATH.join(programInfo.program.path, programs[id]);
-    		var route = "/bundles/" + id;
-    		var routeParts = route.split("/");
-
-    		var re = new RegExp("^" + routeParts.slice(0, routeParts.length-1).join("\\/") + "\\/(" + routeParts.pop() + ".+)$");
-
-    		console.log("Mount program '" + id + "' from path '" + path + "' at route '" + re + "'");
-
-			app.get(re, SECURE_MIDDLEWARE.Bundles(
-				PINF.hoist(PATH.join(path, "program.json"), options.$pinf.makeOptions({
-					debug: true,
-					verbose: true,
-					PINF_RUNTIME: "",
-			        $pinf: options.$pinf
-			    })),
-				{
-					keys: KEYS
-				}
-			))
-    	}
-    }
-
-
-    if (
-    	programInfo.program.descriptor.config["dp.server"] &&
-    	programInfo.program.descriptor.config["dp.server"].server &&
-    	programInfo.program.descriptor.config["dp.server"].server.programs
-    ) {
-	    var programBundles = {};
-
-    	var programs = programInfo.program.descriptor.config["dp.server"].server.programs;
-    	Object.keys(programs).forEach(function (programId) {
-
-    		var path = PATH.join(programInfo.program.path, programs[programId]);
-
-    		console.log("Prepare program '" + programId + "' from path '" + path + "'");
-
-	        return PINF.contextForModule(module, {
-	            "PINF_PROGRAM": PATH.join(path, "program.json"),
-	            "PINF_RUNTIME": "",
-	            verbose: true,
-	            debug: true,
-	            $pinf: options.$pinf
-	        }, function(err, context) {
-	            if (err) return callback(err);
-
-	            var options = {
-//	                distPath: PATH.join(__dirname, "assets/bundles/" + dirname)
-					debug: true,
-					verbose: true
-	            };
-	            return context.bundleProgram(options, function(err, summary) {
-	                if (err) return callback(err);
-
-//console.log("PROGRAM summary", summary);
-
-					programBundles[programId] = summary;
-
-
-
-					if (programId !== "main") return;
-
-					// Handle the "main" case.
-
-					// TODO: Make other program bundles available via dynamic include.
-
-			        var vm = new VM(context);
-			//			try { FS.removeSync(PATH.join(__dirname, ".rt")); } catch(err) {}
-			//            PINF.reset();
-
-					var path = PATH.join(programInfo.program.path, programs[programId]);
-
-					console.log("Load program '" + programId + "' from path '" + path + "'");
-
-			        return vm.loadPackage(path, {
-			            globals: {
-			                console: {
-			                    log: function(message) {
-			                    	var args = Array.prototype.slice.call(arguments);
-			                    	args.unshift("[program:bundle:" + programId + "]");
-			                    	console.log.apply(console, args);
-			                    },
-			                    error: console.error
-			                }
-			            },
-			            debug: true,
-						verbose: true
-			        }, function(err, sandbox) {
-			            if (err) return done(err);
-
-			            try {
-			            	sandbox.main();
-
-							console.log("Loaded program '" + programId + "' from path '" + path + "'");
-
-			            } catch(err) {
-			                return callback(err);
-			            }
-			        });
-
-	            });
-	    	});
-    	});
-    }
-
-
-	app.get(/^(\/.*)$/, function (req, res, next) {
-		var path = req.params[0];
-		if (path === "/") path = "/index.html";
-		return SEND(req, path, {
-			root: PATH.join(__dirname, "www")
-		}).on("error", next).pipe(res);
-	});
-
-
-	HTTP.createServer(app).listen(PORT)
-
-	// Wait for debug output from `PINF.hoist()` to finish.
-	setTimeout(function() {
-		console.log("Open browser to: http://localhost:" + PORT + "/");
-	}, 2 * 1000);
-
-};
-
-
-if (require.main === module) {
-	PINF.main(exports.main, module);
-}
-
-*/

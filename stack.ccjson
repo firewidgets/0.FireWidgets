@@ -9,23 +9,21 @@
                     "stackBasePath": "{{__DIRNAME__}}",
                     "subUri": "/0.FireWidgets"
                 }
+            ],
+            [
+                "./stack.proto.ccjson",
+                {
+                    "namespace": "0.FireWidgets"
+                }
             ]
-        ],
-        "export.0.FireWidgets": {
-            "$": "./Aspects/export/server.plugin.ccjson"
-        }
+        ]
     },
     "@export.0.FireWidgets": {
         "$0.FireWidgets.export.0.FireWidgets": {
-            "$0.FireWidgets.static.fs.components.path()->basePaths/Components": {},
+            "basePaths": {
+                "Features": "{{__DIRNAME__}}/Features"
+            },
             "$0.FireWidgets.static.fs.components.dist.path()->distPath": {}
-        }
-    },
-    "@route.express": {
-        "$0.FireWidgets.routes.export": {
-            "$0.FireWidgets.export.0.FireWidgets.app()->impls/0.FireWidgets": {
-                "match": "^/0.FireWidgets/(.+)$"
-            }
         }
     }
 }

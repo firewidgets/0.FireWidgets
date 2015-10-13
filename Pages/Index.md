@@ -1,10 +1,7 @@
 
-<link rel="import" href="Components/01-Base"/>
+01-ServerWindow
+===============
 
-
-01-Base
-=======
-
-<div component:id="01-Base" component:impl="01-Base">
+<div component:id="01-ServerWindow" component:impl="#0.FireWidgets/Features/01-ServerWindow">
     Loading ...
 </div>

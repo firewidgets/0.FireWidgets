@@ -14,28 +14,19 @@
 </head>
 <body>
 
-
   <div id="page-content" class="ui text container page page-content" component:anchor:id="page-content">
   </div>
 
+  <script>
+      // HACK
+      window.__skipWaitForComponents = true;
+  </script>
   <script src="/cores/export/0.FireWidgets/loader.js"></script>
-
-
-<script>
-	PINF.sandbox("/0.FireWidgets/cores/export/0.FireWidgets/Components/01-Base/main.js", function (sandbox) {
-		sandbox.main();
-	}, function (err) {
-		console.error("Error booting firewidget:", err.stack);
-	});
-</script>
-
-
   <script src="/cores/export/for/browserify/polyfills.dist.js"></script>
   <script src="/cores/export/for/browserify/lib.dist.js"></script>
   <script src="/cores/export/for/browserify/cores.js" async></script>
   <script src="/cores/export/for/browserify/page.js" async></script>
   <script src="/cores/data/for/record.collections/api.js" async></script>
-  <script src="/cores/export/for/webpack.skin/components.js" async></script>
 
   <script>
 	// TODO: This must be callable multiple times!	

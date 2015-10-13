@@ -1,0 +1,45 @@
+{
+    "@": {
+        "export.0.FireWidgets": {
+            "$": "./Aspects/export/server.plugin.ccjson"
+        },
+        "responder.0.FireWidgets": {
+            "$": "./Aspects/responder/server.plugin.ccjson"
+        }
+    },
+    "@export.0.FireWidgets": {
+        "${{ARG.namespace}}.export.0.FireWidgets": {
+            "basePaths": {
+                "Features/0.FireWidgets": "{{__DIRNAME__}}/Features"
+            },
+            "${{ARG.namespace}}.static.fs.components.dist.path()->distPath": {},
+            "${{ARG.namespace}}.template.virtual-dom.transformer()->plugins/require/chscript": {
+                "format": "commonjs"
+            },
+            "${{ARG.namespace}}.skin.sm.hoist.VisualComponents.transformer()->plugins/require/chscript.preprocess": {}
+        }
+    },
+    "@responder.0.FireWidgets": {
+        "${{ARG.namespace}}.responder.0.FireWidgets": {
+            "${{ARG.namespace}}.context.server.api()->context": {},
+            "${{ARG.namespace}}.static.fs.components.dist.path()->distPath": {
+                "namespace": "server/0.FireWidgets"
+            },
+            "basePaths": {
+                "Features/0.FireWidgets": "{{__DIRNAME__}}/Features"
+            }
+        }
+    },
+    "@route.express": {
+        "${{ARG.namespace}}.routes.export": {
+            "${{ARG.namespace}}.export.0.FireWidgets.app()->impls/0.FireWidgets": {
+                "match": "^/0.FireWidgets/(.+)$"
+            }
+        },
+        "${{ARG.namespace}}.routes.responder": {
+            "${{ARG.namespace}}.responder.0.FireWidgets.app()->impls/0.FireWidgets": {
+                "match": "^/0.FireWidgets/([^/]+)/([^/]+)/(data|action)/?(.+)?$"
+            }
+        }
+    }
+}
