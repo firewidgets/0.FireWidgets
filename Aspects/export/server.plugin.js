@@ -76,12 +76,13 @@ exports.forLib = function (LIB) {
 								        				process: function (descriptor, callback) {
 
 								        					function preprocess (code) {
-								        						return config.plugins.require['chscript.preprocess'](code);
+								        						// TODO: Support multiple pre-processors
+								        						return config.formatter['chscript.preprocess'](code);
 								        					}
 
 								        					return preprocess(descriptor.code).then(function (code) {
 
-																return config.plugins.require.chscript(code).then(function (code) {
+																return config.formatter['chscript'](code).then(function (code) {
 
 																	descriptor.code = code;
 	
@@ -126,16 +127,19 @@ exports.forLib = function (LIB) {
 												root: LIB.path.join(__dirname, "../../node_modules/pinf-loader-js")
 											}).on("error", next).pipe(res);
                                         }
+//console.log("uri", uri);
 
                                         var uriParts = uri.split("/");
-                                        
+                                        var componentPointerParts = uriParts.shift().split("~");
+//console.log("componentPointerParts", componentPointerParts);
+
                                         // Determine the longest matching program group
                                         var programGroup = null;
                                         var programAlias = null;
-                                        for (var i=uriParts.length ; i>0 ; i--) {
-                                        	if (config.basePaths[uriParts.slice(0, i).join("/")]) {
-                                        		programGroup = uriParts.splice(0, i).join("/");
-                                        		programAlias = uriParts.shift().replace(/~/g, "/");
+                                        for (var i=componentPointerParts.length ; i>0 ; i--) {
+                                        	if (config.basePaths[componentPointerParts.slice(0, i).join("/")]) {
+                                        		programGroup = componentPointerParts.splice(0, i).join("/");
+                                        		programAlias = componentPointerParts.join("/");
                                         		break;
                                         	}
                                         }
@@ -150,7 +154,13 @@ exports.forLib = function (LIB) {
                                         req.params = [
                                         	uriParts.join("/")
                             	    	];
-
+/*
+console.log("config.basePaths[programGroup]", config.basePaths[programGroup]);
+console.log("programGroup", programGroup);
+console.log("programAlias", programAlias);
+console.log("req.url", req.url);
+console.log("req.params", req.params);
+*/
                                         return getBrowserBundlerApp(config.basePaths[programGroup], programAlias).then(function (app) {
                                         	return app(req, res, next);
                                         }).catch(next);

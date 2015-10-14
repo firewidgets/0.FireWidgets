@@ -5,6 +5,9 @@
         },
         "responder.0.FireWidgets": {
             "$": "./Aspects/responder/server.plugin.ccjson"
+        },
+        "page.0.FireWidgets": {
+            "$": "./Aspects/page/server.plugin.ccjson"
         }
     },
     "@export.0.FireWidgets": {
@@ -13,10 +16,23 @@
                 "Features/0.FireWidgets": "{{__DIRNAME__}}/Features"
             },
             "${{ARG.namespace}}.static.fs.components.dist.path()->distPath": {},
-            "${{ARG.namespace}}.template.virtual-dom.transformer()->plugins/require/chscript": {
+            "${{ARG.namespace}}.template.virtual-dom.transformer()->formatter/chscript": {
                 "format": "commonjs"
             },
-            "${{ARG.namespace}}.skin.sm.hoist.VisualComponents.transformer()->plugins/require/chscript.preprocess": {}
+            "${{ARG.namespace}}.skin.sm.hoist.VisualComponents.transformer()->formatter/chscript.preprocess": {}
+        }
+    },
+    "@page.0.FireWidgets": {
+        "${{ARG.namespace}}.page.0.FireWidgets": {
+            "${{ARG.namespace}}.context.server.api()->context": {},
+            "${{ARG.namespace}}.static.fs.components.dist.path()->distPath": {
+                "namespace": "server/0.FireWidgets/page"
+            },
+            "${{ARG.namespace}}.static.fs.data.pages.path()->basePath": {},
+            "${{ARG.namespace}}.template.virtual-dom.transformer()->formatter/chscript": {
+                "format": "commonjs"
+            },
+            "${{ARG.namespace}}.skin.sm.hoist.VisualComponents.transformer()->formatter/chscript.preprocess": {}
         }
     },
     "@responder.0.FireWidgets": {
@@ -27,6 +43,9 @@
             },
             "basePaths": {
                 "Features/0.FireWidgets": "{{__DIRNAME__}}/Features"
+            },
+            "${{ARG.namespace}}.page.0.FireWidgets.loadTemplateForPage()->loadTemplateForPage": {
+                "location": "server"
             }
         }
     },
@@ -38,7 +57,7 @@
         },
         "${{ARG.namespace}}.routes.responder": {
             "${{ARG.namespace}}.responder.0.FireWidgets.app()->impls/0.FireWidgets": {
-                "match": "^/0.FireWidgets/([^/]+)/([^/]+)/(data|action)/?(.+)?$"
+                "match": "^/0.FireWidgets/([^/]+)/([^/]+)/([^/]+)/(data|action)/?(.+)?$"
             }
         }
     }

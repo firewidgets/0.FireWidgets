@@ -8,21 +8,6 @@ exports.forLib = function (LIB) {
 			const PINF = require("pinf-for-nodejs");
 			const VM = require("pinf-for-nodejs/lib/vm").VM;
 
-			function getPINFContext (programDescriptorPath) {
-				if (!getPINFContext._context) {
-					getPINFContext._context = new LIB.Promise(function (resolve, reject) {
-						return PINF.contextForModule(module, {
-			                "PINF_PROGRAM": programDescriptorPath,
-			                "PINF_RUNTIME": ""
-			            }, function(err, context) {
-			            	if (err) return reject(err);
-							return resolve(context);
-			            });
-					});
-				}
-				return getPINFContext._context;
-			}
-
             var Entity = function (instanceConfig) {
                 var self = this;
 
@@ -40,13 +25,70 @@ exports.forLib = function (LIB) {
 	                LIB._.merge(config, instanceConfig)
 	                LIB._.merge(config, aspectConfig)
 	                config = ccjson.attachDetachedFunctions(config);
-	                
-					function getImplementation (programGroup, programGroupPath, programAlias) {
-						if (!getImplementation._implementations) {
-							getImplementation._implementations = {};
+
+
+	            	var lib = LIB._.clone(LIB);
+                    require("../lib/server.plugin").forLib(lib);
+
+
+					function getPageImplementation (pagePath, componentId, programGroup, programGroupPath, programAlias) {
+						if (!getPageImplementation._implementations) {
+							getPageImplementation._implementations = {};
+						}
+						var programKey = pagePath + ":" + programGroupPath + ":" + programAlias;
+						if (
+							!getPageImplementation._implementations[programKey] ||
+							config.alwaysRebuild === false
+						) {
+
+	                        var componentContext = {};
+
+							return getPageImplementation._implementations[programKey] = getCommonImplementation(componentContext, programGroup, programGroupPath, programAlias).then(function (impl) {
+
+								return config.loadTemplateForPage(pagePath).then(function (template) {
+
+									var scripts = template.getScripts();
+
+									if (
+										scripts[componentId] &&
+										scripts[componentId].server
+									) {
+
+										var componentExports = {};
+										scripts[componentId].server(componentExports);
+                                        var implAPI = componentExports.main(lib, context).impl(componentContext);
+
+										LIB.traverse(implAPI).forEach(function () {
+											if (typeof this.node === "function") {
+												LIB.traverse(impl).set(this.path, this.node);
+											}
+										});
+									}
+
+									return impl;
+								});
+							});
+						}
+						return getPageImplementation._implementations[programKey];
+					}
+
+					function getCommonImplementation (componentContext, programGroup, programGroupPath, programAlias) {
+
+                        if (!programGroup) {
+//							console.error("No programs found while servicing uri '" + req.params[0] + "'");
+//							res.writeHead(404);
+//							res.end("Not Found");
+							return LIB.Promise.resolve({});
+                        }
+
+						if (!getCommonImplementation._implementations) {
+							getCommonImplementation._implementations = {};
 						}
 						var programKey = programGroupPath + ":" + programAlias;
-						if (!getImplementation._implementations[programKey]) {
+						if (
+							!getCommonImplementation._implementations[programKey] ||
+							config.alwaysRebuild === false
+						) {
 
 				    		var path = LIB.path.join(programGroupPath, programAlias);
 
@@ -56,64 +98,79 @@ exports.forLib = function (LIB) {
 
 							// TODO: Use program descriptor for owning/parent/container application instead of
 							//       the program descriptor of the component.
-							getImplementation._implementations[programKey] = getPINFContext(programDescriptorPath).then(function (pinfContext) {
-								
+							getCommonImplementation._implementations[programKey] = (new LIB.Promise(function (resolve, reject) {
+								return PINF.contextForModule(module, {
+					                "PINF_PROGRAM": programDescriptorPath,
+					                "PINF_RUNTIME": ""
+					            }, function(err, context) {
+					            	if (err) return reject(err);
+									return resolve(context);
+					            });
+							})).then(function (pinfContext) {
+
 								return new LIB.Promise(function (resolve, reject) {
 
-						    		console.log("Bundle program '" + programAlias + "' from path '" + path + "'");
+									return LIB.fs.exists(programDescriptorPath, function (exists) {
 
-						            var options = {
-						                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
-										debug: true,
-										verbose: true
-						            };
-						            return pinfContext.bundleProgram(options, function(err, summary) {
-						                if (err) return reject(err);
+										if (!exists) {
+											// No server program exists so we return an empty widget stub and
+											// assume the page scripts declare some methods for the widget.
 
-							    		console.log("Load program '" + programAlias + "' from path '" + path + "'");
-						                
-										// Handle the "main" case.
-	
-										// TODO: Make other program bundles available via dynamic include.
-								        var vm = new VM(pinfContext);
-							//			try { FS.removeSync(PATH.join(__dirname, ".rt")); } catch(err) {}
-							//            PINF.reset();
+											return resolve(lib.firewidgets.Widget(function (context) {
+												return {}
+											}).impl(componentContext));
+										}
 
-								        return vm.loadProgram(programDescriptorPath, {
-								            globals: {
-								                console: {
-								                    log: function(message) {
-								                    	var args = Array.prototype.slice.call(arguments);
-								                    	args.unshift("[program:bundle:" + programGroupPath + ":" + programAlias + "]");
-								                    	console.log.apply(console, args);
-								                    },
-								                    error: console.error
-								                }
-								            },
-								            debug: true,
+							    		console.log("Bundle program '" + programAlias + "' from path '" + path + "'");
+
+							            var options = {
+							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
+											debug: true,
 											verbose: true
-								        }, function(err, sandbox) {
-								            if (err) return reject(err);
+							            };
+							            return pinfContext.bundleProgram(options, function(err, summary) {
+							                if (err) return reject(err);
 
-								            try {
-								            	
-								            	var lib = LIB._.clone(LIB);
-		            	                        require("../lib/server.plugin").forLib(lib);
-		            	                        
-		            	                        var componentContext = {};
+								    		console.log("Load program '" + programAlias + "' from path '" + path + "'");
 
-								            	resolve(sandbox.main(lib, context).impl(componentContext));
+											// Handle the "main" case.
 
-								            } catch(err) {
-								                return reject(err);
-								            }
-								        });
+											// TODO: Make other program bundles available via dynamic include.
+									        var vm = new VM(pinfContext);
+								//			try { FS.removeSync(PATH.join(__dirname, ".rt")); } catch(err) {}
+								//            PINF.reset();
+
+									        return vm.loadProgram(programDescriptorPath, {
+									            globals: {
+									                console: {
+									                    log: function(message) {
+									                    	var args = Array.prototype.slice.call(arguments);
+									                    	args.unshift("[program:bundle:" + programGroupPath + ":" + programAlias + "]");
+									                    	console.log.apply(console, args);
+									                    },
+									                    error: console.error
+									                }
+									            },
+									            debug: true,
+												verbose: true
+									        }, function(err, sandbox) {
+									            if (err) return reject(err);
+	
+									            try {
+
+									            	resolve(sandbox.main(lib, context).impl(componentContext));
+	
+									            } catch(err) {
+									                return reject(err);
+									            }
+									        });
+										});
 									});
 					            });
 							});
 						}
 
-						return getImplementation._implementations[programKey];
+						return getCommonImplementation._implementations[programKey];
 					}
 
                     return LIB.Promise.resolve({
@@ -129,11 +186,12 @@ exports.forLib = function (LIB) {
                                         if (!m) return next();
 
                                         var pagePath = m[1].replace(/~/g, "/");
-                                        var componentUri = m[2].replace(/~/g, "/");
-                                        var type = m[3];
-                                        var pointer = m[4] || "";
+                                        var componentId = m[2].replace(/~/g, "/");
+                                        var componentImpl = m[3].replace(/~/g, "/");
+                                        var type = m[4];
+                                        var pointer = m[5] || "";
 
-                                        var uriParts = componentUri.split("/");
+                                        var uriParts = componentImpl.split("/");
                                         
                                         // Determine the longest matching program group
                                         var programGroup = null;
@@ -145,19 +203,17 @@ exports.forLib = function (LIB) {
                                         		break;
                                         	}
                                         }
-                                        if (!programGroup) {
-											console.error("No programs found while servicing uri '/" + req.params[0] + "'");
-											res.writeHead(404);
-											res.end("Not Found");
-											return;
-                                        }
 
-                                        return getImplementation(programGroup, config.basePaths[programGroup], programAlias).then(function (impl) {
+                                        return getPageImplementation(pagePath, componentId, programGroup, config.basePaths[programGroup], programAlias).then(function (impl) {
                                         	
+
 											if (type === "data") {
 
 												return LIB.Promise.try(function () {
-                                                    if (typeof impl["#0.FireWidgets"].handleActionForPointer !== "function") {
+													if (!impl["#0.FireWidgets"]) {
+                                                        throw new Error("'[#0.FireWidgets]' not declared for server API of component!");
+													}
+                                                    if (typeof impl["#0.FireWidgets"].getDataForPointer !== "function") {
                                                         throw new Error("'[#0.FireWidgets].getDataForPointer' not declared for server API of component!");
                                                     }
 				                                    return impl["#0.FireWidgets"].getDataForPointer(
@@ -175,6 +231,9 @@ exports.forLib = function (LIB) {
                                             if (type === "action") {
 
                                                 return LIB.Promise.try(function () {
+													if (!impl["#0.FireWidgets"]) {
+                                                        throw new Error("'[#0.FireWidgets]' not declared for server API of component!");
+													}
                                                     if (typeof impl["#0.FireWidgets"].handleActionForPointer !== "function") {
                                                         throw new Error("'[#0.FireWidgets].handleActionForPointer' not declared for server API of component!");
                                                     }
@@ -214,59 +273,7 @@ exports.forLib = function (LIB) {
 }
 
 
-
-
 /*
-
-const PATH = require("path");
-const FS = require("fs-extra");
-const PINF = require("pinf-for-nodejs");
-const VM = require("pinf-for-nodejs/lib/vm").VM;
-const EXPRESS = require("express");
-const COMPRESSION = require('compression');
-const SEND = require("send");
-const HTTP = require("http");
-const SECURE_MIDDLEWARE = require("pinf-loader-secure-js/server/middleware");
-const ECC = require("pinf-loader-secure-js/client/ecc");
-
-
-const PORT = process.env.PORT || 8080;
-
-
-exports.FS = FS;
-exports.PINF = PINF;
-
-FS.removeSync(PATH.join(__dirname, "client/.rt"));
-FS.removeSync(PATH.join(__dirname, "client/bundles"));
-
-exports.main = function(options, callback) {
-
-	var app = EXPRESS();
-
-	app.use(COMPRESSION());
-
-	app.get(/^\/lib\/pinf-loader-js\/(.+)$/, function (req, res, next) {
-		return SEND(req, req.params[0], {
-			root: PATH.join(__dirname, "node_modules/pinf-loader-js")
-		}).on("error", next).pipe(res);
-	});
-
-//console.log("options", options);
-
-
-	var programInfo = options.$pinf.getProgramInfo();
-
-
-
-	app.get(/^\/(boot.+)$/, PINF.hoist(PATH.join(__dirname, "./client/program.json"), options.$pinf.makeOptions({
-		debug: true,
-		verbose: true,
-		PINF_RUNTIME: "",
-        $pinf: options.$pinf
-    })));
-
-
-
 	// Watch loaded files for changes and kill process if detected.
 	var files = {};
 	function monitorChildren (node) {
@@ -295,146 +302,235 @@ exports.main = function(options, callback) {
 		}
 	}
 	setInterval(checkFiles, 5 * 1000);
+*/
 
+/*
 
+Load scripts and init them from HTML directly instead of parsing with chscript.
 
+exports.forLib = function (LIB) {
+    var ccjson = this;
 
-	var KEYS = ECC.generate(ECC.SIG_VER);
+// DEPRECATED: 0.FireWidgets now does this using pinf loader
 
-    if (
-    	programInfo.program.descriptor.config["dp.server"] &&
-    	programInfo.program.descriptor.config["dp.server"].client &&
-    	programInfo.program.descriptor.config["dp.server"].client.programs
-    ) {
-    	var programs = programInfo.program.descriptor.config["dp.server"].client.programs;
-    	for (var id in programs) {
-    		var path = PATH.join(programInfo.program.path, programs[id]);
-    		var route = "/bundles/" + id;
-    		var routeParts = route.split("/");
+    return LIB.Promise.resolve({
+        forConfig: function (defaultConfig) {
 
-    		var re = new RegExp("^" + routeParts.slice(0, routeParts.length-1).join("\\/") + "\\/(" + routeParts.pop() + ".+)$");
+            var Entity = function (instanceConfig) {
+                var self = this;
 
-    		console.log("Mount program '" + id + "' from path '" + path + "' at route '" + re + "'");
+                var config = {};
+                LIB._.merge(config, defaultConfig);
+                LIB._.merge(config, instanceConfig);
+                config = ccjson.attachDetachedFunctions(config);
 
-			app.get(re, SECURE_MIDDLEWARE.Bundles(
-				PINF.hoist(PATH.join(path, "program.json"), options.$pinf.makeOptions({
-					debug: true,
-					verbose: true,
-					PINF_RUNTIME: "",
-			        $pinf: options.$pinf
-			    })),
-				{
-					keys: KEYS
-				}
-			))
-    	}
-    }
+                var context = config.context();
 
+                self.AspectInstance = function (aspectConfig) {
 
-    if (
-    	programInfo.program.descriptor.config["dp.server"] &&
-    	programInfo.program.descriptor.config["dp.server"].server &&
-    	programInfo.program.descriptor.config["dp.server"].server.programs
-    ) {
-	    var programBundles = {};
+                    // TODO: Relocate to external parser.
+                    function loadComponentScriptFromFile (path, componentId) {
+// DEPRECATED: 0.FireWidgets now does this using pinf loader
+// TODO: Port this and add support to 0.FireWidgets to do it without PINF loader.
+                        return LIB.Promise.promisify(function (callback) {
+                            return LIB.fs.readFile(path, "utf8", function (err, data) {
+                                if (err) return callback(null);
 
-    	var programs = programInfo.program.descriptor.config["dp.server"].server.programs;
-    	Object.keys(programs).forEach(function (programId) {
+                                if (!loadComponentScriptFromFile._cache) {
+                                    loadComponentScriptFromFile._cache = {};
+                                }
+                                var existing = loadComponentScriptFromFile._cache[path] || null;
+                                if (
+                                    existing &&
+                                    existing.data === data &&
+                                    existing.componentId === componentId
+                                ) {
+                                    return callback(null, existing.func);
+                                }
+                                console.log("Loading source from path:", path);
 
-    		var path = PATH.join(programInfo.program.path, programs[programId]);
+                                // TODO: Use proper HTML parser.
+                                var lines = data.split("\n");
+                                var m = null;
+                                var scriptInfo = null;
+                                var scriptBuffer = null;
+                                for (var i=0 ; i<lines.length ; i++) {
+                                    if (scriptBuffer) {
+                                        if (/<\/script>/.test(lines[i])) {
+                                            if (
+                                                scriptInfo.location === "server" &&
+                                                scriptInfo.id === componentId
+                                            ) {
+                                                var code = scriptBuffer.join("\n");
 
-    		console.log("Prepare program '" + programId + "' from path '" + path + "'");
+                                                const ESPRIMA = require("esprima");
 
-	        return PINF.contextForModule(module, {
-	            "PINF_PROGRAM": PATH.join(path, "program.json"),
-	            "PINF_RUNTIME": "",
-	            verbose: true,
-	            debug: true,
-	            $pinf: options.$pinf
-	        }, function(err, context) {
-	            if (err) return callback(err);
+                                                // Ensure JS is valid.
+                                                try {
+                                                    ESPRIMA.parse(code);
+                                                } catch (err) {
+                                                    console.log("Syntax error for component '" + componentId + "' in file '" + path + "':", err.toString());
+                                                    return callback(err);
+                                                }
 
-	            var options = {
-//	                distPath: PATH.join(__dirname, "assets/bundles/" + dirname)
-					debug: true,
-					verbose: true
-	            };
-	            return context.bundleProgram(options, function(err, summary) {
-	                if (err) return callback(err);
+                                                loadComponentScriptFromFile._cache[path] = {
+                                                    data: data,
+                                                    componentId: componentId,
+                                                    func: new Function(
+                                                        "context",
+                                                        code
+                                                    )
+                                                };
+                                                return callback(null, loadComponentScriptFromFile._cache[path].func);
+                                            }
+                                            scriptInfo = null;
+                                            scriptBuffer = null;
+                                            continue;
+                                        }
+                                        scriptBuffer.push(lines[i]);
+                                        continue;
+                                    }
+                                    // TODO: Be much more forgiving.
+                                    m = lines[i].match(/<script component:id="([^"]+)" component:location="([^"]+)">/);
+                                    if (m) {
+                                        scriptInfo = {
+                                            id: m[1],
+                                            location: m[2]
+                                        };
+                                        scriptBuffer = [];
+                                        continue;
+                                    }
+                                }
+                                return callback(null, null);
+                            });
+                        })();
+                    }
 
-//console.log("PROGRAM summary", summary);
+                    return LIB.Promise.resolve({
+                        app: function () {
+                            
+                            return LIB.Promise.all([
+                                context.getAdapterAPI("page"),
+                                context.getAdapterAPI("data.knexjs.mapper")
+                            ]).spread(function (page, mapper) {
+                                
+                                var wiredComponentCache = {};
 
-					programBundles[programId] = summary;
+                                function wireComponent (pagePath, firewidgetId) {
 
+                                    var cacheId = pagePath + ":" + firewidgetId;
+                                    if (
+                                        wiredComponentCache[cacheId] &&
+                                        config.alwaysRebuild === false
+                                    ) {
+                                        return wiredComponentCache[cacheId];
+                                    }
 
+                                    return (wiredComponentCache[cacheId] = loadComponentScriptFromFile(
+                                        pagePath,
+                                        firewidgetId
+                                    ).then(function (script) {
+                                        if (!script) {
+                                            throw new Error("No server-side 'script' found for component '" + firewidgetId + "' on page '" + pagePath + "'");
+                                        }
+                                        return new LIB.Promise(function (resolve, reject) {
+                                        
+    console.log("Calling widget '" + firewidgetId + "' for page '" + pagePath + "'");
+    
+                                            try {
+                                                script({
+                                                    wireComponent: function (wiring) {
+                        
+                                                        var dataProducer = null;
+                        
+                                                        if (typeof wiring.produceData === "function") {
+                                                            // TODO: Make which adapter to use configurable when refactoring to use ccjson
+                                                            dataProducer = new mapper.Producer();
+    
+                                                            dataProducer.setDataProducer(wiring.produceData);
+                                                        }
+                        
+                                                        return resolve({
+                                                            dataProducer: dataProducer,
+                                                            handleAction: wiring.handleAction || null
+                                                        });
+                                                    }
+                                                });
+                                            } catch (err) {
+                                                console.error("Error wiring component using script:", err.stack);
+                                                return reject(err);
+                                            }
+                                        });
+                                    }));
+                                }                                
 
-					if (programId !== "main") return;
+                                return LIB.Promise.resolve(
+                                    ccjson.makeDetachedFunction(
+                                        function (req, res, next) {
+    
+                                            var pagePath = req.params[0];
+                                            var firewidgetId = req.params[1];
+                                            var type = req.params[2];
+                                            var pointer = (req.params[3] || "").replace(/^\//, "");
 
-					// Handle the "main" case.
+                                            return page.contextForUri(pagePath).then(function (pageContext) {
+                                                if (!pageContext) {
+                                                    throw new Error("Could not load page context for uri '" + pagePath + "'");
+                                                }
 
-					// TODO: Make other program bundles available via dynamic include.
+                                                var pagePath = pageContext.page.data.realpath;
 
-			        var vm = new VM(context);
-			//			try { FS.removeSync(PATH.join(__dirname, ".rt")); } catch(err) {}
-			//            PINF.reset();
+                                                return wireComponent(pagePath, firewidgetId).then(function (wiring) {
+                                                    
+                                                    if (type === "pointer") {
+                                                        return wiring.dataProducer.app({
+                                                            context: context,
+                                                            pointer: pointer
+                                                        })(req, res, function (err) {
+                                                            throw err;
+                                                        });
+                                                    } else
+                                                    if (type === "action") {
+                                                        return LIB.Promise.try(function () {
+                                                            if (typeof wiring.handleAction !== "function") {
+                                                                throw new Error("'handleAction' not declared for server API of component!");
+                                                            }
+                                                            return wiring.handleAction(
+                                                                context,
+                                                                req.body.action,
+                                                                req.body.payload
+                                                            );
+                                                        }).then(function (response) {
+                                                            res.writeHead(200, {
+                                                                "Content-Type": "application/json"
+                                                            });
+                                                            res.end(JSON.stringify(response, null, 4));
+                                                            return;
+                                                        });
+                                                    } else {
+                                                        throw new Error("Route type '" + type + "' not supported!");
+                                                    }
+                                                });
+                                            }).catch(function (err) {
+                                                console.error(err.stack);
+                                                res.writeHead(500);
+                                                res.end("Internal Server Error");
+                                                return;
+                                            });
+                                        }
+                                    )
+                                );
+                            });
+                        }
+                    });
+                }
 
-					var path = PATH.join(programInfo.program.path, programs[programId]);
+            }
+            Entity.prototype.config = defaultConfig;
 
-					console.log("Load program '" + programId + "' from path '" + path + "'");
-
-			        return vm.loadPackage(path, {
-			            globals: {
-			                console: {
-			                    log: function(message) {
-			                    	var args = Array.prototype.slice.call(arguments);
-			                    	args.unshift("[program:bundle:" + programId + "]");
-			                    	console.log.apply(console, args);
-			                    },
-			                    error: console.error
-			                }
-			            },
-			            debug: true,
-						verbose: true
-			        }, function(err, sandbox) {
-			            if (err) return done(err);
-
-			            try {
-			            	sandbox.main();
-
-							console.log("Loaded program '" + programId + "' from path '" + path + "'");
-
-			            } catch(err) {
-			                return callback(err);
-			            }
-			        });
-
-	            });
-	    	});
-    	});
-    }
-
-
-	app.get(/^(\/.*)$/, function (req, res, next) {
-		var path = req.params[0];
-		if (path === "/") path = "/index.html";
-		return SEND(req, path, {
-			root: PATH.join(__dirname, "www")
-		}).on("error", next).pipe(res);
-	});
-
-
-	HTTP.createServer(app).listen(PORT)
-
-	// Wait for debug output from `PINF.hoist()` to finish.
-	setTimeout(function() {
-		console.log("Open browser to: http://localhost:" + PORT + "/");
-	}, 2 * 1000);
-
-};
-
-
-if (require.main === module) {
-	PINF.main(exports.main, module);
+            return Entity;
+        }
+    });
 }
 
 */
