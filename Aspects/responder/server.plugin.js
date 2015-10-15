@@ -27,7 +27,7 @@ exports.forLib = function (LIB) {
 	                config = ccjson.attachDetachedFunctions(config);
 
 
-	            	var lib = LIB._.clone(LIB);
+	            	var lib = Object.create(LIB);
                     require("../lib/server.plugin").forLib(lib);
 
 
@@ -35,7 +35,7 @@ exports.forLib = function (LIB) {
 						if (!getPageImplementation._implementations) {
 							getPageImplementation._implementations = {};
 						}
-						var programKey = pagePath + ":" + programGroupPath + ":" + programAlias;
+						var programKey = pagePath + ":" + componentId + ":" + programGroupPath + ":" + programAlias;
 						if (
 							!getPageImplementation._implementations[programKey] ||
 							config.alwaysRebuild === false
@@ -43,8 +43,7 @@ exports.forLib = function (LIB) {
 
 	                        var componentContext = {};
 
-							return getPageImplementation._implementations[programKey] = getCommonImplementation(componentContext, programGroup, programGroupPath, programAlias).then(function (impl) {
-
+							return getPageImplementation._implementations[programKey] = getCommonImplementation(programKey, componentContext, programGroup, programGroupPath, programAlias).then(function (impl) {
 								return config.loadTemplateForPage(pagePath).then(function (template) {
 
 									var scripts = template.getScripts();
@@ -56,8 +55,7 @@ exports.forLib = function (LIB) {
 
 										var componentExports = {};
 										scripts[componentId].server(componentExports);
-                                        var implAPI = componentExports.main(lib, context).impl(componentContext);
-
+                                        var implAPI = componentExports.main(lib, context).newImplementationInstance(componentContext);
 										LIB.traverse(implAPI).forEach(function () {
 											if (typeof this.node === "function") {
 												LIB.traverse(impl).set(this.path, this.node);
@@ -68,11 +66,13 @@ exports.forLib = function (LIB) {
 									return impl;
 								});
 							});
+						} else {
+						    console.log("Use cached page impl from key '" + programKey + "' while servicing:", pagePath, componentId, programGroup, programGroupPath, programAlias);
 						}
 						return getPageImplementation._implementations[programKey];
 					}
 
-					function getCommonImplementation (componentContext, programGroup, programGroupPath, programAlias) {
+					function getCommonImplementation (programKey, componentContext, programGroup, programGroupPath, programAlias) {
 
                         if (!programGroup) {
 //							console.error("No programs found while servicing uri '" + req.params[0] + "'");
@@ -84,7 +84,7 @@ exports.forLib = function (LIB) {
 						if (!getCommonImplementation._implementations) {
 							getCommonImplementation._implementations = {};
 						}
-						var programKey = programGroupPath + ":" + programAlias;
+						programKey = programKey + ":" + "component";
 						if (
 							!getCommonImplementation._implementations[programKey] ||
 							config.alwaysRebuild === false
@@ -115,10 +115,9 @@ exports.forLib = function (LIB) {
 										if (!exists) {
 											// No server program exists so we return an empty widget stub and
 											// assume the page scripts declare some methods for the widget.
-
 											return resolve(lib.firewidgets.Widget(function (context) {
 												return {}
-											}).impl(componentContext));
+											}).newImplementationInstance(componentContext));
 										}
 
 							    		console.log("Bundle program '" + programAlias + "' from path '" + path + "'");
@@ -152,13 +151,16 @@ exports.forLib = function (LIB) {
 									                }
 									            },
 									            debug: true,
-												verbose: true
+												verbose: true,
+												ttl: -1
 									        }, function(err, sandbox) {
 									            if (err) return reject(err);
 	
 									            try {
 
-									            	resolve(sandbox.main(lib, context).impl(componentContext));
+                                                    var impl = sandbox.main(lib, context).newImplementationInstance(componentContext);
+
+									            	resolve(impl);
 	
 									            } catch(err) {
 									                return reject(err);
@@ -168,6 +170,8 @@ exports.forLib = function (LIB) {
 									});
 					            });
 							});
+						} else {
+						    console.log("Use cached component impl from key '" + programKey + "' while servicing:", programGroup, programGroupPath, programAlias);
 						}
 
 						return getCommonImplementation._implementations[programKey];
@@ -184,13 +188,19 @@ exports.forLib = function (LIB) {
                                         var expression = new RegExp(config.match.replace(/\//g, "\\/"));
                                         var m = expression.exec(req.params[0]);
                                         if (!m) return next();
-
+//console.log("m", m);
                                         var pagePath = m[1].replace(/~/g, "/");
                                         var componentId = m[2].replace(/~/g, "/");
                                         var componentImpl = m[3].replace(/~/g, "/");
                                         var type = m[4];
                                         var pointer = m[5] || "";
-
+/*
+console.log("pagePath", pagePath);
+console.log("componentId", componentId);
+console.log("componentImpl", componentImpl);
+console.log("type", type);
+console.log("pointer", pointer);
+*/
                                         var uriParts = componentImpl.split("/");
                                         
                                         // Determine the longest matching program group
@@ -199,16 +209,17 @@ exports.forLib = function (LIB) {
                                         for (var i=uriParts.length ; i>0 ; i--) {
                                         	if (config.basePaths[uriParts.slice(0, i).join("/")]) {
                                         		programGroup = uriParts.splice(0, i).join("/");
-                                        		programAlias = uriParts.shift().replace(/~/g, "/");
+                                        		programAlias = uriParts.join("/");
                                         		break;
                                         	}
                                         }
 
+//console.log("programGroup", programGroup);
+//console.log("programAlias", programAlias);
+
                                         return getPageImplementation(pagePath, componentId, programGroup, config.basePaths[programGroup], programAlias).then(function (impl) {
-                                        	
 
 											if (type === "data") {
-
 												return LIB.Promise.try(function () {
 													if (!impl["#0.FireWidgets"]) {
                                                         throw new Error("'[#0.FireWidgets]' not declared for server API of component!");
@@ -220,7 +231,7 @@ exports.forLib = function (LIB) {
 				                                        pointer,
 				                                        req.query || {}
 				                                    );
-				                                }).then(function (result) {
+				                                }).timeout(5 * 1000, "'getDataForPointer' took too long").then(function (result) {
 				                                    res.writeHead(200, {
 				                                        "Content-Type": "application/json"
 				                                    });

@@ -25,15 +25,21 @@ exports.forLib = function (LIB) {
 
 		            return context.getAdapterAPI("page").then(function (page) {
 
+		            	var currentlyLoading = {};
+
 	                    return LIB.Promise.resolve({
 	                        loadTemplateForPage: function (pageUri) {
 	                            return LIB.Promise.resolve(
 	                                ccjson.makeDetachedFunction(
 	                            	    function (pageUri) {
 
+				                        	if (currentlyLoading[pageUri]) {
+				                        		return currentlyLoading[pageUri];
+				                        	}
+
 											var distPath = LIB.path.join(config.distPath, pageUri + ".tpl.js");
-											
-											return new LIB.Promise(function (resolve, reject) {
+
+											return (currentlyLoading[pageUri] = new LIB.Promise(function (resolve, reject) {
 												return LIB.fs.exists(distPath, resolve);
 											}).then(function (exists) {
 
@@ -47,7 +53,7 @@ exports.forLib = function (LIB) {
 												// Generate a new copy and cache it
 
 												return page.contextForUri(pageUri).then(function (pageContext) {
-	
+
 													return LIB.fs.readFileAsync(pageContext.page.data.realpath, "utf8").then(function (code) {
 	
 							        					function preprocess (code) {
@@ -72,7 +78,10 @@ exports.forLib = function (LIB) {
 														});
 													});
 							                    });
-											});
+											})).then(function (tpl) {
+	                           					delete currentlyLoading[pageUri];
+				                           		return tpl;
+				                           	});
 	                            	    }
 	                        		)
 	                           	);
