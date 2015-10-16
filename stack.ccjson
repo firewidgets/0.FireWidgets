@@ -2,28 +2,15 @@
     "@": {
         "$": [
             [
-                "../components/0.CloudIDE/for/pinf.genesis/stack.proto.ccjson",
+                "./stack.proto.ccjson",
                 {
                     "namespace": "0.FireWidgets",
                     "name": "0.FireWidgets",
+                    "label": "0.FireWidgets",
                     "stackBasePath": "{{__DIRNAME__}}",
                     "subUri": "/0.FireWidgets"
                 }
-            ],
-            [
-                "./stack.proto.ccjson",
-                {
-                    "namespace": "0.FireWidgets"
-                }
             ]
         ]
-    },
-    "@export.0.FireWidgets": {
-        "$0.FireWidgets.export.0.FireWidgets": {
-            "basePaths": {
-                "Features": "{{__DIRNAME__}}/Features"
-            },
-            "$0.FireWidgets.static.fs.components.dist.path()->distPath": {}
-        }
     }
 }
