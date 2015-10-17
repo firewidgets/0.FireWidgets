@@ -216,8 +216,9 @@ console.log("pointer", pointer);
 
 //console.log("programGroup", programGroup);
 //console.log("programAlias", programAlias);
+                                        var programGroupPath = config.basePaths[programGroup];
 
-                                        return getPageImplementation(pagePath, componentId, programGroup, config.basePaths[programGroup], programAlias).then(function (impl) {
+                                        return getPageImplementation(pagePath, componentId, programGroup, programGroupPath, programAlias).then(function (impl) {
 
 											if (type === "data") {
 												return LIB.Promise.try(function () {

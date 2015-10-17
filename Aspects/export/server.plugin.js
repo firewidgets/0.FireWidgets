@@ -161,9 +161,21 @@ console.log("programAlias", programAlias);
 console.log("req.url", req.url);
 console.log("req.params", req.params);
 */
-                                        return getBrowserBundlerApp(config.basePaths[programGroup], programAlias).then(function (app) {
-                                        	return app(req, res, next);
-                                        }).catch(next);
+
+                                        var programGroupPath = config.basePaths[programGroup];
+                                        
+                                        return LIB.fs.existsAsync(programGroupPath).then(function (exists) {
+                                        	if (!exists) {
+												console.error("No programs found while servicing uri '/" + req.params[0] + "'");
+												res.writeHead(204);
+												res.end("");
+												return;
+                                        	}
+
+	                                        return getBrowserBundlerApp(programGroupPath, programAlias).then(function (app) {
+	                                        	return app(req, res, next);
+	                                        }).catch(next);
+                                        });
                             	    }
                                 )
                             );
