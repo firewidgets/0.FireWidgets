@@ -16,3 +16,6 @@
 [submodule ".deps/github.com~pinf-it~pinf-it-package-insight~0/source/installed/master"]
 	path = .deps/github.com~pinf-it~pinf-it-package-insight~0/source/installed/master
 	url = git://github.com/pinf-it/pinf-it-package-insight.git
+[submodule ".deps/github.com~pinf~pinf-config-js~0/source/installed/master"]
+	path = .deps/github.com~pinf~pinf-config-js~0/source/installed/master
+	url = git://github.com/pinf/pinf-config-js.git

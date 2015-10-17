@@ -1,5 +1,5 @@
 {
     "scripts": {
-        "install": "sm.expand sm.json"
+        "install": "scripts/install.sh"
     }
 }

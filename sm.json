@@ -7,6 +7,7 @@
             "sources": ".deps/{uid}/source/installed/{rev}"
         },
         "mappings": {
+            "pinf-config": "github.com~pinf~pinf-config-js~0/master",
             "pinf-for-nodejs": "github.com~pinf~pinf-for-nodejs~0/master",
             "pinf-loader-js": "github.com~pinf~pinf-loader-js~0/master",
             "pinf-loader-secure-js": "github.com~pinf~pinf-loader-secure-js~0/master",
@@ -15,6 +16,12 @@
             "pinf-it-package-insight": "github.com~pinf-it~pinf-it-package-insight~0/master"
         },
         "sources": {
+            "github.com~pinf~pinf-config-js~0": {
+                "master": {
+                    "installer": "npm",
+                    "uri": "git://git@github.com:pinf/pinf-config-js.git#(master)"
+                }
+            },
             "github.com~pinf~pinf-for-nodejs~0": {
                 "master": {
                     "installer": "npm",
