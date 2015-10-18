@@ -21,7 +21,7 @@ function init {
 		BO_format "$VERBOSE" "HEADER" "Installing ..."
 
 		# TODO: For some reason we need to activate again to ensure the correct nodejs version is selected.
-	    BO_sourcePrototype "$_OUR_BASE_DIR/../../scripts/activate.sh"
+	    BO_sourcePrototype "$Z0_ROOT/scripts/activate.sh"
 
 		pushd "$_OUR_BASE_DIR/.." > /dev/null
 
@@ -30,7 +30,7 @@ function init {
 			export WORKSPACE_DIR="$WORKSPACE_DIR"
 
 			export VERBOSE="1"
-			sm.expand sm.json
+			"$Z0_ROOT/node_modules/.bin/sm.expand" sm.json
 
 		popd > /dev/null
 
