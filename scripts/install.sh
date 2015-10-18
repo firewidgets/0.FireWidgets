@@ -25,12 +25,20 @@ function init {
 
 		pushd "$_OUR_BASE_DIR/.." > /dev/null
 
+			if [ -f ".gitmodules" ]; then
+				if [ ! -f ".gitmodules.initialized" ]; then
+					echo "Init submodules ..."
+					git submodule update --init --recursive --rebase || true
+					touch ".gitmodules.initialized"
+				fi
+			fi
+
 			# NOTE: For some reason we need to export this again to make it available to the 'sm.expand' command.
 			#       Other variables gat through. Why?
 			export WORKSPACE_DIR="$WORKSPACE_DIR"
 
 			export VERBOSE="1"
-			"$Z0_ROOT/node_modules/.bin/sm.expand" sm.json
+			"$Z0_ROOT/lib/sm.expand/sm.expand" sm.json
 
 		popd > /dev/null
 

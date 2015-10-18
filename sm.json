@@ -5,6 +5,9 @@
             "mappings": "node_modules/{alias}",
             "sources": ".deps/{uid}/source/installed/{rev}"
         },
+        "@github.com~sourcemint~sm.expand~0/settings": {
+            "useRelativeMappings": true
+        },
         "mappings": {
             "pinf-config": "github.com~pinf~pinf-config-js~0/master",
             "pinf-for-nodejs": "github.com~pinf~pinf-for-nodejs~0/master",
