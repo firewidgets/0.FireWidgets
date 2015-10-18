@@ -3,7 +3,6 @@
         "@github.com~sourcemint~sm.expand~0/locations": {
             "binaries": "node_modules/.bin/{bin}",
             "mappings": "node_modules/{alias}",
-            "registries": "{{env.WORKSPACE_DIR}}/.bash.origin.cache/{uid}/source/installed/{rev}",
             "sources": ".deps/{uid}/source/installed/{rev}"
         },
         "mappings": {
