@@ -37,6 +37,10 @@ function init {
 			#       Other variables gat through. Why?
 			export WORKSPACE_DIR="$WORKSPACE_DIR"
 
+
+			# TODO: Split dependencies into 'build' and 'runtime' aspect and only install if needed
+			#       Select which aspect to install via declaration.
+
 			export VERBOSE="1"
 			"$Z0_ROOT/lib/sm.expand/sm.expand" sm.json
 
