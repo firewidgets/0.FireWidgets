@@ -37,7 +37,7 @@ exports.forLib = function (LIB) {
 							!getPageImplementation._implementations[programKey] ||
 							config.alwaysRebuild !== false
 						) {
-
+console.log(" ** BUNDLING (getPageImplementation):", programKey);
 	                        var componentContext = {};
 
 							return getPageImplementation._implementations[programKey] = getCommonImplementation(programKey, componentContext, programGroup, programGroupPath, programAlias).then(function (impl) {
@@ -86,6 +86,8 @@ exports.forLib = function (LIB) {
 							!getCommonImplementation._implementations[programKey] ||
 							config.alwaysRebuild !== false
 						) {
+console.log(" ** BUNDLING (getCommonImplementation):", programKey);
+						    
                 			const PINF_CONTEXT = require("pinf-for-nodejs/lib/context");
                 			const VM = require("pinf-for-nodejs/lib/vm").VM;
 
