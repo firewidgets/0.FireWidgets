@@ -39,9 +39,7 @@ exports.forLib = function (LIB) {
 
 											var distPath = LIB.path.join(config.distPath, pageUri + ".tpl.js");
 
-											return (currentlyLoading[pageUri] = new LIB.Promise(function (resolve, reject) {
-												return LIB.fs.exists(distPath, resolve);
-											}).then(function (exists) {
+											return (currentlyLoading[pageUri] = LIB.fs.existsAsync(distPath).then(function (exists) {
 
 												if (
 													exists &&

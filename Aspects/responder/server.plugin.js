@@ -5,9 +5,6 @@ exports.forLib = function (LIB) {
     return LIB.Promise.resolve({
         forConfig: function (defaultConfig) {
 
-			const PINF = require("pinf-for-nodejs");
-			const VM = require("pinf-for-nodejs/lib/vm").VM;
-
             var Entity = function (instanceConfig) {
                 var self = this;
 
@@ -38,7 +35,7 @@ exports.forLib = function (LIB) {
 						var programKey = pagePath + ":" + componentId + ":" + programGroupPath + ":" + programAlias;
 						if (
 							!getPageImplementation._implementations[programKey] ||
-							config.alwaysRebuild === false
+							config.alwaysRebuild !== false
 						) {
 
 	                        var componentContext = {};
@@ -87,8 +84,11 @@ exports.forLib = function (LIB) {
 						programKey = programKey + ":" + "component";
 						if (
 							!getCommonImplementation._implementations[programKey] ||
-							config.alwaysRebuild === false
+							config.alwaysRebuild !== false
 						) {
+                			const PINF_CONTEXT = require("pinf-for-nodejs/lib/context");
+                			const VM = require("pinf-for-nodejs/lib/vm").VM;
+
 
 				    		var path = LIB.path.join(programGroupPath, programAlias);
 
@@ -99,7 +99,8 @@ exports.forLib = function (LIB) {
 							// TODO: Use program descriptor for owning/parent/container application instead of
 							//       the program descriptor of the component.
 							getCommonImplementation._implementations[programKey] = (new LIB.Promise(function (resolve, reject) {
-								return PINF.contextForModule(module, {
+								
+								return PINF_CONTEXT.contextForModule(module, {
 					                "PINF_PROGRAM": programDescriptorPath,
 					                "PINF_RUNTIME": ""
 					            }, function(err, context) {
@@ -108,27 +109,54 @@ exports.forLib = function (LIB) {
 					            });
 							})).then(function (pinfContext) {
 
-								return new LIB.Promise(function (resolve, reject) {
+								return LIB.fs.existsAsync(programDescriptorPath).then(function (exists) {
 
-									return LIB.fs.exists(programDescriptorPath, function (exists) {
+									if (!exists) {
+										// No server program exists so we return an empty widget stub and
+										// assume the page scripts declare some methods for the widget.
+										return lib.firewidgets.Widget(function (context) {
+											return {}
+										}).newImplementationInstance(componentContext);
+									}
 
-										if (!exists) {
-											// No server program exists so we return an empty widget stub and
-											// assume the page scripts declare some methods for the widget.
-											return resolve(lib.firewidgets.Widget(function (context) {
-												return {}
-											}).newImplementationInstance(componentContext));
-										}
+									function bundleProgram () {
 
 							    		console.log("Bundle program '" + programAlias + "' from path '" + path + "'");
 
-							            var options = {
-							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
-											debug: true,
-											verbose: true
-							            };
-							            return pinfContext.bundleProgram(options, function(err, summary) {
-							                if (err) return reject(err);
+                                        // TODO: Check specific file being requested instead of whole directory.
+                                        //       This will be needed when dynamic sub-bundles get loaded.
+                                        var programCachePath = LIB.path.join(config.distPath, programGroup, programAlias);
+
+										return LIB.fs.existsAsync(path).then(function (exists) {
+									        if (
+									        	exists &&
+								        		config.alwaysRebuild === false
+									        ) {
+									            // We do not re-build the bundle
+									            console.log("Use cached bundle from: ", programCachePath);
+									            return;
+									        }
+
+									        // We re-build the bundle
+
+    									    return new LIB.Promise(function (resolve, reject) {
+    
+        							            return pinfContext.bundleProgram({
+        							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
+        											debug: true,
+        											verbose: true
+        							            }, function(err, summary) {
+        							                if (err) return reject(err);
+    
+                                                    return resolve();
+        							            });
+    							            });
+										});
+									}
+
+									return bundleProgram().then(function () {
+									    
+									    return new LIB.Promise(function (resolve, reject) {
 
 								    		console.log("Load program '" + programAlias + "' from path '" + path + "'");
 
@@ -166,9 +194,9 @@ exports.forLib = function (LIB) {
 									                return reject(err);
 									            }
 									        });
-										});
+									    });
 									});
-					            });
+								});
 							});
 						} else {
 						    console.log("Use cached component impl from key '" + programKey + "' while servicing:", programGroup, programGroupPath, programAlias);

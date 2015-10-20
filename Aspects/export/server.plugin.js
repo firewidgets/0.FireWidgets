@@ -6,25 +6,6 @@ exports.forLib = function (LIB) {
     return LIB.Promise.resolve({
         forConfig: function (defaultConfig) {
 
-			const PINF = require("pinf-for-nodejs");
-			const SECURE_MIDDLEWARE = require("pinf-loader-secure-js/server/middleware");
-			const ECC = require("pinf-loader-secure-js/client/ecc");
-
-			function getPINFContext (programDescriptorPath) {
-				if (!getPINFContext._context) {
-					getPINFContext._context = new LIB.Promise(function (resolve, reject) {
-						return PINF.contextForModule(module, {
-			                "PINF_PROGRAM": programDescriptorPath,
-			                "PINF_RUNTIME": ""
-			            }, function(err, context) {
-			            	if (err) return reject(err);
-							return resolve(context);
-			            });
-					});
-				}
-				return getPINFContext._context;
-			}
-
             var Entity = function (instanceConfig) {
                 var self = this;
 
@@ -41,15 +22,34 @@ exports.forLib = function (LIB) {
 	                LIB._.merge(config, aspectConfig)
 	                config = ccjson.attachDetachedFunctions(config);
 
-// TODO: Get these from config
-					var KEYS = ECC.generate(ECC.SIG_VER);
-
 					function getBrowserBundlerApp (programGroupPath, programAlias) {
 						if (!getBrowserBundlerApp._app) {
 							getBrowserBundlerApp._app = {};
 						}
 						var programKey = programGroupPath + ":" + programAlias;
 						if (!getBrowserBundlerApp._app[programKey]) {
+				
+							const PINF = require("pinf-for-nodejs");
+							const SECURE_MIDDLEWARE = require("pinf-loader-secure-js/server/middleware");
+//							const ECC = require("pinf-loader-secure-js/client/ecc");
+
+// TODO: Get these from config
+							//var KEYS = ECC.generate(ECC.SIG_VER);
+
+							function getPINFContext (programDescriptorPath) {
+								if (!getPINFContext._context) {
+									getPINFContext._context = new LIB.Promise(function (resolve, reject) {
+										return PINF.contextForModule(module, {
+							                "PINF_PROGRAM": programDescriptorPath,
+							                "PINF_RUNTIME": ""
+							            }, function(err, context) {
+							            	if (err) return reject(err);
+											return resolve(context);
+							            });
+									});
+								}
+								return getPINFContext._context;
+							}
 
 				    		var path = LIB.path.join(programGroupPath, programAlias);
 
@@ -63,6 +63,7 @@ exports.forLib = function (LIB) {
 
 								return SECURE_MIDDLEWARE.Bundles(
 									PINF.hoist(programDescriptorPath, pinfContext.makeOptions({
+								        distPath: LIB.path.join(config.distPath, programAlias),
 										debug: true,
 										verbose: true,
 										PINF_RUNTIME: "",
@@ -99,7 +100,7 @@ exports.forLib = function (LIB) {
 								        }
 								    })),
 									{
-										keys: KEYS
+										keys: null//KEYS
 									}
 								);
 							});
@@ -162,20 +163,41 @@ console.log("req.url", req.url);
 console.log("req.params", req.params);
 */
 
-                                        var programGroupPath = config.basePaths[programGroup];
-                                        
-                                        return LIB.fs.existsAsync(programGroupPath).then(function (exists) {
-                                        	if (!exists) {
-												console.error("No programs found while servicing uri '/" + req.params[0] + "'");
-												res.writeHead(204);
-												res.end("");
-												return;
-                                        	}
+										// Return already built file if we can
+								        var path = LIB.path.join(config.distPath, programAlias, req.params[0]);
 
-	                                        return getBrowserBundlerApp(programGroupPath, programAlias).then(function (app) {
-	                                        	return app(req, res, next);
-	                                        }).catch(next);
-                                        });
+										return LIB.fs.existsAsync(path).then(function (exists) {
+									        if (
+									        	exists &&
+									        	(
+									        		/\.dist\./.test(path) ||
+									        		config.alwaysRebuild === false
+									        	)
+									        ) {
+									           	// We return a pre-built file if it exists and are being asked for it
+												return LIB.send(req, LIB.path.basename(path), {
+                                    				root: LIB.path.dirname(path)
+                                    			}).on("error", next).pipe(res);
+									        }
+
+
+											// Build file from sources
+
+	                                        var programGroupPath = config.basePaths[programGroup];
+
+	                                        return LIB.fs.existsAsync(programGroupPath).then(function (exists) {
+	                                        	if (!exists) {
+													console.error("No programs found while servicing uri '/" + req.params[0] + "'");
+													res.writeHead(204);
+													res.end("");
+													return;
+	                                        	}
+
+		                                        return getBrowserBundlerApp(programGroupPath, programAlias).then(function (app) {
+		                                        	return app(req, res, next);
+		                                        }).catch(next);
+	                                        });
+	                            	    }).catch(next);
                             	    }
                                 )
                             );

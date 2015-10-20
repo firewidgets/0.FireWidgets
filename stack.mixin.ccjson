@@ -15,7 +15,9 @@
             "basePaths": {
                 "Features/0.FireWidgets": "{{__DIRNAME__}}/Features"
             },
-            "${{ARG.namespace}}.static.fs.components.dist.path()->distPath": {},
+            "${{ARG.namespace}}.static.fs.components.dist.path()->distPath": {
+                "namespace": "0.FireWidgets/export"
+            },
             "${{ARG.namespace}}.template.virtual-dom.transformer()->formatter/chscript": {
                 "format": "commonjs"
             },
@@ -26,7 +28,7 @@
         "${{ARG.namespace}}.page.0.FireWidgets": {
             "${{ARG.namespace}}.context.server.api()->context": {},
             "${{ARG.namespace}}.static.fs.components.dist.path()->distPath": {
-                "namespace": "server/0.FireWidgets/page"
+                "namespace": "0.FireWidgets/page"
             },
             "${{ARG.namespace}}.static.fs.data.pages.path()->basePath": {},
             "${{ARG.namespace}}.template.virtual-dom.transformer()->formatter/chscript": {
@@ -39,7 +41,7 @@
         "${{ARG.namespace}}.responder.0.FireWidgets": {
             "${{ARG.namespace}}.context.server.api()->context": {},
             "${{ARG.namespace}}.static.fs.components.dist.path()->distPath": {
-                "namespace": "server/0.FireWidgets"
+                "namespace": "0.FireWidgets/responder"
             },
             "basePaths": {
                 "Features/0.FireWidgets": "{{__DIRNAME__}}/Features"
