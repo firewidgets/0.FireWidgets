@@ -28,6 +28,8 @@ exports.forLib = function (LIB) {
                     require("../lib/server.plugin").forLib(lib);
 
 
+                    var bundleProgram_implementations = {};
+
 					function getPageImplementation (pagePath, componentId, programGroup, programGroupPath, programAlias) {
 						if (!getPageImplementation._implementations) {
 							getPageImplementation._implementations = {};
@@ -86,8 +88,7 @@ console.log(" ** BUNDLING (getPageImplementation):", programKey);
 							!getCommonImplementation._implementations[programKey] ||
 							config.alwaysRebuild !== false
 						) {
-console.log(" ** BUNDLING (getCommonImplementation):", programKey);
-						    
+
                 			const PINF_CONTEXT = require("pinf-for-nodejs/lib/context");
                 			const VM = require("pinf-for-nodejs/lib/vm").VM;
 
@@ -98,10 +99,52 @@ console.log(" ** BUNDLING (getCommonImplementation):", programKey);
 
 				    		var programDescriptorPath = LIB.path.join(path, "server.program.json");
 
+							function bundleProgram (pinfContext) {
+
+                                var programCachePath = LIB.path.join(config.distPath, programGroup, programAlias);
+
+        						if (bundleProgram_implementations[programCachePath]) {
+    					    		console.log("Use existing loaded bundle for program '" + programAlias + "' from path '" + programCachePath + "'");
+        						    return bundleProgram_implementations[programCachePath];
+        						}
+
+					    		console.log("Bundle program '" + programAlias + "' from path '" + path + "'");
+
+                                // TODO: Check specific file being requested instead of whole directory.
+                                //       This will be needed when dynamic sub-bundles get loaded.
+								return (bundleProgram_implementations[programCachePath] = LIB.fs.existsAsync(programCachePath).then(function (exists) {
+							        if (
+							        	exists &&
+						        		config.alwaysRebuild === false
+							        ) {
+							            // We do not re-build the bundle
+							            console.log("Use cached bundle from: ", programCachePath);
+							            return;
+							        }
+
+							        // We re-build the bundle
+
+								    return new LIB.Promise(function (resolve, reject) {
+
+console.log(" ** BUNDLING (getCommonImplementation):", programKey);
+
+							            return pinfContext.bundleProgram({
+							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
+											debug: true,
+											verbose: true
+							            }, function(err, summary) {
+							                if (err) return reject(err);
+
+                                            return resolve();
+							            });
+						            });
+								}));
+							}
+
 							// TODO: Use program descriptor for owning/parent/container application instead of
 							//       the program descriptor of the component.
 							getCommonImplementation._implementations[programKey] = (new LIB.Promise(function (resolve, reject) {
-								
+
 								return PINF_CONTEXT.contextForModule(module, {
 					                "PINF_PROGRAM": programDescriptorPath,
 					                "PINF_RUNTIME": ""
@@ -121,48 +164,14 @@ console.log(" ** BUNDLING (getCommonImplementation):", programKey);
 										}).newImplementationInstance(componentContext);
 									}
 
-									function bundleProgram () {
+									return bundleProgram(pinfContext).then(function () {
 
-							    		console.log("Bundle program '" + programAlias + "' from path '" + path + "'");
-
-                                        // TODO: Check specific file being requested instead of whole directory.
-                                        //       This will be needed when dynamic sub-bundles get loaded.
-                                        var programCachePath = LIB.path.join(config.distPath, programGroup, programAlias);
-
-										return LIB.fs.existsAsync(path).then(function (exists) {
-									        if (
-									        	exists &&
-								        		config.alwaysRebuild === false
-									        ) {
-									            // We do not re-build the bundle
-									            console.log("Use cached bundle from: ", programCachePath);
-									            return;
-									        }
-
-									        // We re-build the bundle
-
-    									    return new LIB.Promise(function (resolve, reject) {
-    
-        							            return pinfContext.bundleProgram({
-        							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
-        											debug: true,
-        											verbose: true
-        							            }, function(err, summary) {
-        							                if (err) return reject(err);
-    
-                                                    return resolve();
-        							            });
-    							            });
-										});
-									}
-
-									return bundleProgram().then(function () {
-									    
 									    return new LIB.Promise(function (resolve, reject) {
 
 								    		console.log("Load program '" + programAlias + "' from path '" + path + "'");
 
 											// Handle the "main" case.
+console.log(" ** LOADING IN VM (getCommonImplementation):", programKey);
 
 											// TODO: Make other program bundles available via dynamic include.
 									        var vm = new VM(pinfContext);

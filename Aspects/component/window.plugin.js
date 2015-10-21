@@ -49,7 +49,10 @@ exports.forLib = function (LIB) {
                 // TODO: Convert '~' in 'pointer' to '/'
     	        var uri = context.contexts.page.resolveUri("/cores/export/0.FireWidgets/" + pointer.replace(/\//g, "~") + "/main.js");
 
-                if (!implementations[pointer]) {
+                if (
+                    !implementations[pointer] ||
+                    context.config.alwaysReload !== false
+                ) {
                     implementations[pointer] = new LIB.Promise(function (resolve, reject) {
                         try {
                             // Use the PINF Loader to load the widget
