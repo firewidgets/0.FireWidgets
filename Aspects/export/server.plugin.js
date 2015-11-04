@@ -72,6 +72,39 @@ exports.forLib = function (LIB) {
 								        autoloadSourceChanges: true,
 								        plugins: {
 								        	"require": {
+								        		"remount": {
+								        			"#pinf-it-bundler": {
+								        				process: function (descriptor, callback) {
+								        					
+								        					if (config.subUri) {
+									        					var html = descriptor.code;
+	
+							                                    // Re-base all links, style and script paths.
+									        					// TODO: Use 'chscript' commonjs module parser to open chscript file, traverse the dom trees and write them back out to file.
+							                                    var re = /(h\("a.+?href":"|h\("img.+?src":"|h\("script.+?src":"|h\("link.+?href":")(\/[^"]*)/g;
+							                                    var m = null;
+							                                    var replace = {};
+							                                    while ( (m = re.exec(html)) ) {
+							                                        if (m[2].substring(0, config.subUri.length + 1) === config.subUri + "/") {
+							                                            // Path is already adjusted.
+							                                        } else {
+							                                            replace[m[0]] = m;
+							                                        }
+							                                    }
+							                                    Object.keys(replace).forEach(function (key) {
+							                                        html = html.replace(
+							                                            new RegExp(LIB.RegExp_Escape(replace[key][0]), "g"),
+							                                            replace[key][1] + config.subUri + replace[key][2]
+							                                        );
+							                                    });
+
+									        					descriptor.code = html;
+															}
+
+															return callback(null);
+								        				}
+								        			}
+								        		},
 								        		"chscript": {
 								        			"#pinf-it-bundler": {
 								        				process: function (descriptor, callback) {

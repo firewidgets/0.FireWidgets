@@ -12,6 +12,7 @@
     },
     "@export.0.FireWidgets": {
         "${{ARG.namespace}}.export.0.FireWidgets": {
+            "subUri": "{{ARG.subUri}}",
             "basePaths": {
                 "Features/0.FireWidgets": "{{__DIRNAME__}}/Features"
             },
@@ -59,7 +60,7 @@
         },
         "${{ARG.namespace}}.routes.responder": {
             "${{ARG.namespace}}.responder.0.FireWidgets.app()->impls/0.FireWidgets": {
-                "match": "^/0.FireWidgets/([^/]+)/([^/]+)/([^/]+)/(data|action)/?(.+)?$"
+                "match": "^/0.FireWidgets/([^/]*)/([^/]+)/([^/]+)/(data|action)/?(.+)?$"
             }
         }
     }
