@@ -47,7 +47,13 @@ exports.forLib = function (LIB) {
 
                 // TODO: This URI must be resolved via the 'context' so the URI pattern may be declared
                 // TODO: Convert '~' in 'pointer' to '/'
-    	        var uri = context.contexts.page.resolveUri("/cores/export/0.FireWidgets/" + pointer.replace(/\//g, "~") + "/main.js");
+                var uri = "/cores/export/0.FireWidgets/" + pointer.replace(/\//g, "~");
+                if (uri.indexOf(":") >= 0) {
+                    uri += ".js";
+                } else {
+                    uri += ":main.js";
+                }
+    	        uri = context.contexts.page.resolveUri(uri);
 
                 if (
                     !implementations[pointer] ||

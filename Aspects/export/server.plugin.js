@@ -22,13 +22,13 @@ exports.forLib = function (LIB) {
 	                LIB._.merge(config, aspectConfig)
 	                config = ccjson.attachDetachedFunctions(config);
 
-					function getBrowserBundlerApp (programGroupPath, programAlias) {
+					function getBrowserBundlerApp (programGroupPath, programAlias, programModule) {
 						if (!getBrowserBundlerApp._app) {
 							getBrowserBundlerApp._app = {};
 						}
-						var programKey = programGroupPath + ":" + programAlias;
+						var programKey = programGroupPath + ":" + programAlias + ":" + programModule;
 						if (!getBrowserBundlerApp._app[programKey]) {
-				
+
 							const PINF = require("pinf-for-nodejs");
 							const SECURE_MIDDLEWARE = require("pinf-loader-secure-js/server/middleware");
 //							const ECC = require("pinf-loader-secure-js/client/ecc");
@@ -64,6 +64,8 @@ exports.forLib = function (LIB) {
 								return SECURE_MIDDLEWARE.Bundles(
 									PINF.hoist(programDescriptorPath, pinfContext.makeOptions({
 								        distPath: LIB.path.join(config.distPath, programAlias),
+								        rootModule: programModule,
+								        rootModuleBundleOnly: true,
 										debug: true,
 										verbose: true,
 										PINF_RUNTIME: "",
@@ -161,10 +163,12 @@ exports.forLib = function (LIB) {
 												root: LIB.path.join(__dirname, "../../node_modules/pinf-loader-js")
 											}).on("error", next).pipe(res);
                                         }
-//console.log("uri", uri);
 
-                                        var uriParts = uri.split("/");
+                                        var uriParts = uri.split(":");
                                         var componentPointerParts = uriParts.shift().split("~");
+                                        if (uriParts.length > 0) {
+	                                        uriParts = uriParts[0].split("~");
+                                        }
 //console.log("componentPointerParts", componentPointerParts);
 
                                         // Determine the longest matching program group
@@ -184,14 +188,17 @@ exports.forLib = function (LIB) {
 											return;
                                         }
 
-                                        req.url = "/" + uriParts.join("/");
+                            	    	var programModule = uriParts.join("/")
+                                        req.url = "/" + programModule;
                                         req.params = [
                                         	uriParts.join("/")
                             	    	];
+
 /*
 console.log("config.basePaths[programGroup]", config.basePaths[programGroup]);
 console.log("programGroup", programGroup);
 console.log("programAlias", programAlias);
+console.log("programModule", programModule);
 console.log("req.url", req.url);
 console.log("req.params", req.params);
 */
@@ -226,8 +233,14 @@ console.log("req.params", req.params);
 													return;
 	                                        	}
 
-		                                        return getBrowserBundlerApp(programGroupPath, programAlias).then(function (app) {
-		                                        	return app(req, res, next);
+		                                        return getBrowserBundlerApp(programGroupPath, programAlias, programModule).then(function (app) {
+		                                        	return app(req, res, function (err) {
+		                                        		if (err) return next(err);
+
+		                                        		res.writeHead(404);
+		                                        		res.end("Not Found");
+		                                        		return;
+		                                        	});
 		                                        }).catch(next);
 	                                        });
 	                            	    }).catch(next);
