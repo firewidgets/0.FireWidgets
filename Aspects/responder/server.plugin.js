@@ -30,11 +30,11 @@ exports.forLib = function (LIB) {
 
                     var bundleProgram_implementations = {};
 
-					function getPageImplementation (pagePath, componentId, programGroup, programGroupPath, programAlias) {
+					function getPageImplementation (pagePath, componentId, programGroup, programGroupPath, programAlias, programModule) {
 						if (!getPageImplementation._implementations) {
 							getPageImplementation._implementations = {};
 						}
-						var programKey = pagePath + ":" + componentId + ":" + programGroupPath + ":" + programAlias;
+						var programKey = pagePath + ":" + componentId + ":" + programGroupPath + ":" + programAlias + ":" + programModule;
 						if (
 							!getPageImplementation._implementations[programKey] ||
 							config.alwaysRebuild !== false
@@ -42,25 +42,28 @@ exports.forLib = function (LIB) {
 console.log(" ** BUNDLING (getPageImplementation):", programKey);
 	                        var componentContext = {};
 
-							return getPageImplementation._implementations[programKey] = getCommonImplementation(programKey, componentContext, programGroup, programGroupPath, programAlias).then(function (impl) {
+							return getPageImplementation._implementations[programKey] = getCommonImplementation(programKey, componentContext, programGroup, programGroupPath, programAlias, programModule).then(function (impl) {
+
 								return config.loadTemplateForPage(pagePath).then(function (template) {
 
-									var scripts = template.getScripts();
-
-									if (
-										scripts[componentId] &&
-										scripts[componentId].server
-									) {
-
-										var componentExports = {};
-										scripts[componentId].server(componentExports);
-                                        var implAPI = componentExports.main(lib, context).newImplementationInstance(componentContext);
-										LIB.traverse(implAPI).forEach(function () {
-											if (typeof this.node === "function") {
-												LIB.traverse(impl).set(this.path, this.node);
-											}
-										});
-									}
+                                    if (template) {
+    									var scripts = template.getScripts();
+    
+    									if (
+    										scripts[componentId] &&
+    										scripts[componentId].server
+    									) {
+    
+    										var componentExports = {};
+    										scripts[componentId].server(componentExports);
+                                            var implAPI = componentExports.main(lib, context).newImplementationInstance(componentContext);
+    										LIB.traverse(implAPI).forEach(function () {
+    											if (typeof this.node === "function") {
+    												LIB.traverse(impl).set(this.path, this.node);
+    											}
+    										});
+    									}
+                                    }
 
 									return impl;
 								});
@@ -71,7 +74,7 @@ console.log(" ** BUNDLING (getPageImplementation):", programKey);
 						return getPageImplementation._implementations[programKey];
 					}
 
-					function getCommonImplementation (programKey, componentContext, programGroup, programGroupPath, programAlias) {
+					function getCommonImplementation (programKey, componentContext, programGroup, programGroupPath, programAlias, programModule) {
 
                         if (!programGroup) {
 //							console.error("No programs found while servicing uri '" + req.params[0] + "'");
@@ -130,6 +133,8 @@ console.log(" ** BUNDLING (getCommonImplementation):", programKey);
 
 							            return pinfContext.bundleProgram({
 							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
+    								        rootModule: programModule,
+    								        rootModuleBundleOnly: true,
 											debug: true,
 											verbose: true
 							            }, function(err, summary) {
@@ -189,18 +194,22 @@ console.log(" ** LOADING IN VM (getCommonImplementation):", programKey);
 									                    error: console.error
 									                }
 									            },
+        								        rootModule: programModule,
+        								        rootModuleBundleOnly: true,
 									            debug: true,
 												verbose: true,
 												ttl: -1
 									        }, function(err, sandbox) {
 									            if (err) return reject(err);
-	
+
 									            try {
 
-                                                    var impl = sandbox.main(lib, context).newImplementationInstance(componentContext);
+                                                    var impl = sandbox.main(lib, context);
+
+                                                    impl = impl.newImplementationInstance(componentContext);
 
 									            	resolve(impl);
-	
+
 									            } catch(err) {
 									                return reject(err);
 									            }
@@ -227,10 +236,10 @@ console.log(" ** LOADING IN VM (getCommonImplementation):", programKey);
                                         var expression = new RegExp(config.match.replace(/\//g, "\\/"));
                                         var m = expression.exec(req.params[0]);
                                         if (!m) return next();
-//console.log("m", m);
+
                                         var pagePath = m[1].replace(/~/g, "/");
                                         var componentId = m[2].replace(/~/g, "/");
-                                        var componentImpl = m[3].replace(/~/g, "/");
+                                        var componentImpl = m[3];
                                         var type = m[4];
                                         var pointer = m[5] || "";
 /*
@@ -240,24 +249,37 @@ console.log("componentImpl", componentImpl);
 console.log("type", type);
 console.log("pointer", pointer);
 */
-                                        var uriParts = componentImpl.split("/");
-                                        
+                                        var uriParts = componentImpl.split(":");
+                                        var componentPointerParts = uriParts.shift().split("~");
+                                        if (uriParts.length > 0) {
+	                                        uriParts = uriParts[0].split("~");
+                                        }
+
+//console.log("componentPointerParts", componentPointerParts);
+//console.log("config.basePaths", config.basePaths);
+
                                         // Determine the longest matching program group
                                         var programGroup = null;
                                         var programAlias = null;
-                                        for (var i=uriParts.length ; i>0 ; i--) {
-                                        	if (config.basePaths[uriParts.slice(0, i).join("/")]) {
-                                        		programGroup = uriParts.splice(0, i).join("/");
-                                        		programAlias = uriParts.join("/");
+                                        for (var i=componentPointerParts.length ; i>0 ; i--) {
+                                        	if (config.basePaths[componentPointerParts.slice(0, i).join("/")]) {
+                                        		programGroup = componentPointerParts.splice(0, i).join("/");
+                                        		programAlias = componentPointerParts.join("/");
                                         		break;
                                         	}
                                         }
 
 //console.log("programGroup", programGroup);
 //console.log("programAlias", programAlias);
+
+                            	    	var programModule = uriParts.join("/");
+                            	    	if (programModule) {
+                            	    	    programModule += ".js";
+                            	    	}
+
                                         var programGroupPath = config.basePaths[programGroup];
 
-                                        return getPageImplementation(pagePath, componentId, programGroup, programGroupPath, programAlias).then(function (impl) {
+                                        return getPageImplementation(pagePath, componentId, programGroup, programGroupPath, programAlias, programModule).then(function (impl) {
 
 											if (type === "data") {
 												return LIB.Promise.try(function () {

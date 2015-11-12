@@ -49,28 +49,35 @@ exports.forLib = function (LIB) {
 												}
 
 												// Generate a new copy and cache it
-
 												return page.contextForUri(pageUri).then(function (pageContext) {
+													
+													return LIB.fs.statAsync(pageContext.page.data.realpath).then(function (stat) {
 
-													return LIB.fs.readFileAsync(pageContext.page.data.realpath, "utf8").then(function (code) {
+														
+														if (stat.isDirectory()) {
+															return null;
+														}
 	
-							        					function preprocess (code) {
-							        						// TODO: Support multiple pre-processors
-							        						return config.formatter['chscript.preprocess'](code);
-							        					}
+														return LIB.fs.readFileAsync(pageContext.page.data.realpath, "utf8").then(function (code) {
+		
+								        					function preprocess (code) {
+								        						// TODO: Support multiple pre-processors
+								        						return config.formatter['chscript.preprocess'](code);
+								        					}
+		
+								        					return preprocess(code).then(function (code) {
 	
-							        					return preprocess(code).then(function (code) {
-
-															return config.formatter['chscript'](code, {
-																location: config.location
-															}).then(function (code) {
-																
-																return LIB.fs.outputFileAsync(distPath, code, "utf8").then(function () {
-
-																	console.log("Writing page cache file to:", distPath);
-
-																	delete require.cache[distPath];
-																	return require(distPath);
+																return config.formatter['chscript'](code, {
+																	location: config.location
+																}).then(function (code) {
+																	
+																	return LIB.fs.outputFileAsync(distPath, code, "utf8").then(function () {
+	
+																		console.log("Writing page cache file to:", distPath);
+	
+																		delete require.cache[distPath];
+																		return require(distPath);
+																	});
 																});
 															});
 														});

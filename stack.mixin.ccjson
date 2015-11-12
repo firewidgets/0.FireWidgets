@@ -60,7 +60,7 @@
         },
         "${{ARG.namespace}}.routes.responder": {
             "${{ARG.namespace}}.responder.0.FireWidgets.app()->impls/0.FireWidgets": {
-                "match": "^/0.FireWidgets/([^/]*)/([^/]+)/([^/]+)/(data|action)/?(.+)?$"
+                "match": "^/0.FireWidgets/([^/]*)/([^/]+)/([^/]*)/(data|action)/?(.+)?$"
             }
         }
     }
