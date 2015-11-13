@@ -135,6 +135,7 @@ console.log(" ** BUNDLING (getCommonImplementation):", programKey);
 							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
     								        rootModule: programModule,
     								        rootModuleBundleOnly: true,
+    								        omitMtimeMeta: true,
 											debug: true,
 											verbose: true
 							            }, function(err, summary) {
@@ -196,6 +197,7 @@ console.log(" ** LOADING IN VM (getCommonImplementation):", programKey);
 									            },
         								        rootModule: programModule,
         								        rootModuleBundleOnly: true,
+        								        omitMtimeMeta: true,
 									            debug: true,
 												verbose: true,
 												ttl: -1

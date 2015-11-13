@@ -66,6 +66,7 @@ exports.forLib = function (LIB) {
 								        distPath: LIB.path.join(config.distPath, programAlias),
 								        rootModule: programModule,
 								        rootModuleBundleOnly: true,
+								        omitMtimeMeta: true,
 										debug: true,
 										verbose: true,
 										PINF_RUNTIME: "",
