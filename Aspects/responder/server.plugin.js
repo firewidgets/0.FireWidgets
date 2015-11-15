@@ -39,7 +39,7 @@ exports.forLib = function (LIB) {
 							!getPageImplementation._implementations[programKey] ||
 							config.alwaysRebuild !== false
 						) {
-console.log(" ** BUNDLING (getPageImplementation):", programKey);
+
 	                        var componentContext = {};
 
 							return getPageImplementation._implementations[programKey] = getCommonImplementation(programKey, componentContext, programGroup, programGroupPath, programAlias, programModule).then(function (impl) {
@@ -87,81 +87,106 @@ console.log(" ** BUNDLING (getPageImplementation):", programKey);
 							getCommonImplementation._implementations = {};
 						}
 						programKey = programKey + ":" + "component";
-						if (
-							!getCommonImplementation._implementations[programKey] ||
-							config.alwaysRebuild !== false
-						) {
+						if (!getCommonImplementation._implementations[programKey]) {
+						    
+						    function runPrebuilt () {
+						        
+						        return LIB.Promise.try(function() {
+        							if (config.alwaysRebuild !== false) {
+        							    // We are not configured to use the cached version.
+                                        if (LIB.VERBOSE) console.log("Build bundle for '" + bundleDistPath + "' due to 'config.alwaysRebuild !== false'");
+        							    return;
+        							}
+        							// We should try and use the cached version.
 
-                			const PINF_CONTEXT = require("pinf-for-nodejs/lib/context");
-                			const VM = require("pinf-for-nodejs/lib/vm").VM;
+        						    // First we see if we can have a pre-built version
+                                    var programDistBasePath = LIB.path.join(config.distPath, programGroup, programAlias);
+
+                                    // TODO: Do not assume 'main.js' as root bundle and check program descriptor for main module.
+                                    var bundleDistPath = programDistBasePath + "/" + (programModule || "main.js");
+                                    return LIB.fs.existsAsync(bundleDistPath).then(function (exists) {
+                                        if (!exists) {
+                                            // No pre-built bundle found.
+                                            if (LIB.VERBOSE) console.log("No pre-built bundle found at:", bundleDistPath);
+                                            return;
+                                        }
+
+                                        // Load pre-built bundle using minimal PINF runtime loader.
+
+                                        if (LIB.VERBOSE) console.log("Load pre-built bundle:", bundleDistPath);
+
+                            			const PINF_LOADER = require("pinf-for-nodejs/lib/loader");
+
+                                        return LIB.Promise.promisify(function (callback) {
+
+                                            return PINF_LOADER.sandbox(bundleDistPath, {
+                            					verbose: LIB.VERBOSE || false,
+                            					debug: LIB.VERBOSE || false,
+                            					ttl: 0,     // Cache indefinite
+    								            globals: {
+    								                console: {
+    								                    log: function(message) {
+    								                    	var args = Array.prototype.slice.call(arguments);
+    								                    	args.unshift("[program:bundle:" + programGroupPath + ":" + programAlias + "]");
+    								                    	console.log.apply(console, args);
+    								                    },
+    								                    error: console.error
+    								                }
+    								            },
+                            					resolveDynamicSync: function (moduleObj, pkg, sandbox, canonicalId, options) {
+                            						if (/^\//.test(canonicalId)) {
+                            							return LIB.path.join(moduleObj.bundle.replace(/\.js$/, ""), canonicalId);
+                            						} else {
+                            							// TODO: Deal with package alias prefixes.
+                            						}
+                            						console.log("canonicalId", canonicalId);
+                            		            	throw new Error("`resolveDynamicSync` should not be called here! Make sure all dynamic links are declared in the package descriptor!");
+                            		            },
+                            					ensureAsync: function(moduleObj, pkg, sandbox, canonicalId, options, callback) {
+                            						// We assume dynamic link points to a generated bundle.
+                            						return callback(null);
+                            		            }
+                            				}, function(sandbox) {
+                            					return callback(null, sandbox);
+                            				}, callback);
+
+                                        })().then(function (sandbox) {
+
+                                            var impl = sandbox.main(lib, context);
+
+                                            if (LIB.VERBOSE) console.log("Using pre-built bundle from:", bundleDistPath);
+
+                                            // We successfully loaded the pre-built bundle and now set it for use.
+                                            getCommonImplementation._implementations[programKey] = impl.newImplementationInstance(componentContext);
+                                        });
+                                    });
+						        });
+						    }
+
+						    return runPrebuilt().then(function () {
+
+    						    if (getCommonImplementation._implementations[programKey]) {
+    						        return getCommonImplementation._implementations[programKey];
+    						    }
 
 
-				    		var path = LIB.path.join(programGroupPath, programAlias);
+                                // Build bundle ...
 
-				    		console.log("Mount program '" + programAlias + "' from path '" + path + "'");
 
-				    		var programDescriptorPath = LIB.path.join(path, "server.program.json");
+                    			const PINF_CONTEXT = require("pinf-for-nodejs/lib/context");
+                    			const VM = require("pinf-for-nodejs/lib/vm").VM;
 
-							function bundleProgram (pinfContext) {
+    				    		var path = LIB.path.join(programGroupPath, programAlias);
+    
+    				    		console.log("Mount program '" + programAlias + "' from path '" + path + "'");
+    
+    				    		var programDescriptorPath = LIB.path.join(path, "server.program.json");
 
-                                var programCachePath = LIB.path.join(config.distPath, programGroup, programAlias);
 
-        						if (bundleProgram_implementations[programCachePath]) {
-    					    		console.log("Use existing loaded bundle for program '" + programAlias + "' from path '" + programCachePath + "'");
-        						    return bundleProgram_implementations[programCachePath];
-        						}
-
-					    		console.log("Bundle program '" + programAlias + "' from path '" + path + "'");
-
-                                // TODO: Check specific file being requested instead of whole directory.
-                                //       This will be needed when dynamic sub-bundles get loaded.
-								return (bundleProgram_implementations[programCachePath] = LIB.fs.existsAsync(programCachePath).then(function (exists) {
-							        if (
-							        	exists &&
-						        		config.alwaysRebuild === false
-							        ) {
-							            // We do not re-build the bundle
-							            console.log("Use cached bundle from: ", programCachePath);
-							            return;
-							        }
-
-							        // We re-build the bundle
-
-								    return new LIB.Promise(function (resolve, reject) {
-
-console.log(" ** BUNDLING (getCommonImplementation):", programKey);
-
-							            return pinfContext.bundleProgram({
-							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
-    								        rootModule: programModule,
-    								        rootModuleBundleOnly: true,
-    								        omitMtimeMeta: true,
-											debug: true,
-											verbose: true
-							            }, function(err, summary) {
-							                if (err) return reject(err);
-
-                                            return resolve();
-							            });
-						            });
-								}));
-							}
-
-							// TODO: Use program descriptor for owning/parent/container application instead of
-							//       the program descriptor of the component.
-							getCommonImplementation._implementations[programKey] = (new LIB.Promise(function (resolve, reject) {
-
-								return PINF_CONTEXT.contextForModule(module, {
-					                "PINF_PROGRAM": programDescriptorPath,
-					                "PINF_RUNTIME": ""
-					            }, function(err, context) {
-					            	if (err) return reject(err);
-									return resolve(context);
-					            });
-							})).then(function (pinfContext) {
-
-								return LIB.fs.existsAsync(programDescriptorPath).then(function (exists) {
-
+    							// TODO: Use program descriptor for owning/parent/container application instead of
+    							//       the program descriptor of the component.
+    							return getCommonImplementation._implementations[programKey] = LIB.fs.existsAsync(programDescriptorPath).then(function (exists) {
+    
 									if (!exists) {
 										// No server program exists so we return an empty widget stub and
 										// assume the page scripts declare some methods for the widget.
@@ -169,57 +194,191 @@ console.log(" ** BUNDLING (getCommonImplementation):", programKey);
 											return {}
 										}).newImplementationInstance(componentContext);
 									}
+    
+        							return (new LIB.Promise(function (resolve, reject) {
+        
+        								return PINF_CONTEXT.contextForModule(module, {
+        					                "PINF_PROGRAM": programDescriptorPath,
+        					                "PINF_RUNTIME": ""
+        					            }, function(err, context) {
+        					            	if (err) return reject(err);
+        									return resolve(context);
+        					            });
+        							})).then(function (pinfContext) {
 
-									return bundleProgram(pinfContext).then(function () {
-
-									    return new LIB.Promise(function (resolve, reject) {
-
-								    		console.log("Load program '" + programAlias + "' from path '" + path + "'");
-
-											// Handle the "main" case.
-console.log(" ** LOADING IN VM (getCommonImplementation):", programKey);
-
-											// TODO: Make other program bundles available via dynamic include.
-									        var vm = new VM(pinfContext);
-								//			try { FS.removeSync(PATH.join(__dirname, ".rt")); } catch(err) {}
-								//            PINF.reset();
-
-									        return vm.loadProgram(programDescriptorPath, {
-									            globals: {
-									                console: {
-									                    log: function(message) {
-									                    	var args = Array.prototype.slice.call(arguments);
-									                    	args.unshift("[program:bundle:" + programGroupPath + ":" + programAlias + "]");
-									                    	console.log.apply(console, args);
-									                    },
-									                    error: console.error
-									                }
-									            },
+        							    return LIB.Promise.promisify(function (callback) {
+        							        
+                            		        var vm = new VM(pinfContext);
+                            		        return vm.loadProgram(programDescriptorPath, {
+//                            		        return vm.loadProgram(LIB.path.basename(programDescriptorPath), {
+//                            		            rootPath: LIB.path.dirname(programDescriptorPath),
+                            					distPath: LIB.path.join(config.distPath, programGroup, programAlias),
+                            		            globals: {
+                            		                console: {
+        							                    log: function(message) {
+        							                    	var args = Array.prototype.slice.call(arguments);
+        							                    	args.unshift("[program:bundle:" + programGroupPath + ":" + programAlias + "]");
+        							                    	console.log.apply(console, args);
+        							                    },
+                            		                    error: console.error
+                            		                }
+                            		            },
         								        rootModule: programModule,
         								        rootModuleBundleOnly: true,
         								        omitMtimeMeta: true,
-									            debug: true,
-												verbose: true,
-												ttl: -1
-									        }, function(err, sandbox) {
-									            if (err) return reject(err);
-
-									            try {
-
+        										debug: LIB.VERBOSE,
+        										verbose: LIB.VERBOSE,
+                            					ttl: -1     // Always re-build
+                            		        }, function (err, sandbox) {
+                            		        	if (err) return callback(err);
+    
+    								            try {
+    
                                                     var impl = sandbox.main(lib, context);
-
+    
                                                     impl = impl.newImplementationInstance(componentContext);
+    
+    								            	return callback(null, impl);
+    
+    								            } catch (err) {
+    								                return callback(err);
+    								            }
+                            		        });
+        							    })();
+        							});
+    							});
 
-									            	resolve(impl);
 
-									            } catch(err) {
-									                return reject(err);
-									            }
-									        });
-									    });
-									});
-								});
-							});
+/*    						        
+                    			const PINF_CONTEXT = require("pinf-for-nodejs/lib/context");
+                    			const VM = require("pinf-for-nodejs/lib/vm").VM;
+    
+    				    		var path = LIB.path.join(programGroupPath, programAlias);
+    
+    				    		console.log("Mount program '" + programAlias + "' from path '" + path + "'");
+    
+    				    		var programDescriptorPath = LIB.path.join(path, "server.program.json");
+    
+    							function bundleProgram (pinfContext) {
+    
+                                    var programCachePath = LIB.path.join(config.distPath, programGroup, programAlias);
+    
+            						if (bundleProgram_implementations[programCachePath]) {
+        					    		console.log("Use existing loaded bundle for program '" + programAlias + "' from path '" + programCachePath + "'");
+            						    return bundleProgram_implementations[programCachePath];
+            						}
+    
+    					    		console.log("Bundle program '" + programAlias + "' from path '" + path + "'");
+    
+                                    // TODO: Check specific file being requested instead of whole directory.
+                                    //       This will be needed when dynamic sub-bundles get loaded.
+    								return (bundleProgram_implementations[programCachePath] = LIB.fs.existsAsync(programCachePath).then(function (exists) {
+    							        if (
+    							        	exists &&
+    						        		config.alwaysRebuild === false
+    							        ) {
+    							            // We do not re-build the bundle
+    							            console.log("Use cached bundle from: ", programCachePath);
+    							            return;
+    							        }
+    
+    							        // We re-build the bundle
+    
+    								    return new LIB.Promise(function (resolve, reject) {
+    
+    console.log(" ** BUNDLING (getCommonImplementation):", programKey);
+    
+    							            return pinfContext.bundleProgram({
+    							                distPath: LIB.path.join(config.distPath, programGroup, programAlias),
+        								        rootModule: programModule,
+        								        rootModuleBundleOnly: true,
+        								        omitMtimeMeta: true,
+    											debug: true,
+    											verbose: true
+    							            }, function(err, summary) {
+    							                if (err) return reject(err);
+    
+                                                return resolve();
+    							            });
+    						            });
+    								}));
+    							}
+    
+    							// TODO: Use program descriptor for owning/parent/container application instead of
+    							//       the program descriptor of the component.
+    							return getCommonImplementation._implementations[programKey] = (new LIB.Promise(function (resolve, reject) {
+    
+    								return PINF_CONTEXT.contextForModule(module, {
+    					                "PINF_PROGRAM": programDescriptorPath,
+    					                "PINF_RUNTIME": ""
+    					            }, function(err, context) {
+    					            	if (err) return reject(err);
+    									return resolve(context);
+    					            });
+    							})).then(function (pinfContext) {
+    
+    								return LIB.fs.existsAsync(programDescriptorPath).then(function (exists) {
+    
+    									if (!exists) {
+    										// No server program exists so we return an empty widget stub and
+    										// assume the page scripts declare some methods for the widget.
+    										return lib.firewidgets.Widget(function (context) {
+    											return {}
+    										}).newImplementationInstance(componentContext);
+    									}
+    
+    									return bundleProgram(pinfContext).then(function () {
+    
+    									    return new LIB.Promise(function (resolve, reject) {
+    
+    								    		console.log("Load program '" + programAlias + "' from path '" + path + "'");
+    
+    											// Handle the "main" case.
+    console.log(" ** LOADING IN VM (getCommonImplementation):", programKey);
+    
+    											// TODO: Make other program bundles available via dynamic include.
+    									        var vm = new VM(pinfContext);
+    								//			try { FS.removeSync(PATH.join(__dirname, ".rt")); } catch(err) {}
+    								//            PINF.reset();
+    
+    									        return vm.loadProgram(programDescriptorPath, {
+    									            globals: {
+    									                console: {
+    									                    log: function(message) {
+    									                    	var args = Array.prototype.slice.call(arguments);
+    									                    	args.unshift("[program:bundle:" + programGroupPath + ":" + programAlias + "]");
+    									                    	console.log.apply(console, args);
+    									                    },
+    									                    error: console.error
+    									                }
+    									            },
+            								        rootModule: programModule,
+            								        rootModuleBundleOnly: true,
+            								        omitMtimeMeta: true,
+    									            debug: true,
+    												verbose: true,
+    												ttl: -1
+    									        }, function(err, sandbox) {
+    									            if (err) return reject(err);
+    
+    									            try {
+    
+                                                        var impl = sandbox.main(lib, context);
+    
+                                                        impl = impl.newImplementationInstance(componentContext);
+    
+    									            	resolve(impl);
+    
+    									            } catch(err) {
+    									                return reject(err);
+    									            }
+    									        });
+    									    });
+    									});
+    								});
+    							});
+*/    							
+						    });
 						} else {
 						    console.log("Use cached component impl from key '" + programKey + "' while servicing:", programGroup, programGroupPath, programAlias);
 						}
@@ -261,8 +420,8 @@ console.log("pointer", pointer);
 //console.log("config.basePaths", config.basePaths);
 
                                         // Determine the longest matching program group
-                                        var programGroup = null;
-                                        var programAlias = null;
+                                        var programGroup = "";
+                                        var programAlias = "";
                                         for (var i=componentPointerParts.length ; i>0 ; i--) {
                                         	if (config.basePaths[componentPointerParts.slice(0, i).join("/")]) {
                                         		programGroup = componentPointerParts.splice(0, i).join("/");
@@ -279,7 +438,13 @@ console.log("pointer", pointer);
                             	    	    programModule += ".js";
                             	    	}
 
-                                        var programGroupPath = config.basePaths[programGroup];
+                                        var programGroupPath = "";
+                                        if (
+                                            programGroup &&
+                                            config.basePaths[programGroup]
+                            	        ) {
+                            	            programGroupPath = config.basePaths[programGroup];
+                            	        }
 
                                         return getPageImplementation(pagePath, componentId, programGroup, programGroupPath, programAlias, programModule).then(function (impl) {
 

@@ -83,7 +83,7 @@ exports.forLib = function (LIB) {
                             return "/cores/responder/0.FireWidgets/" +
                                 pageUri.replace(/^\//, "").replace(/\//g, "~") + "/" +
                                 componentId.replace(/\//g, "~") + "/" +
-                                componentImplId.replace(/^#0.FireWidgets\//, "").replace(/\//g, "~") + "/" +
+                                ((componentImplId && componentImplId.replace(/^#0.FireWidgets\//, "").replace(/\//g, "~")) || "") + "/" +
                                 "action";
                         }
 
@@ -91,7 +91,7 @@ exports.forLib = function (LIB) {
                             return "/cores/responder/0.FireWidgets/" +
                                 pageUri.replace(/^\//, "").replace(/\//g, "~") + "/" +
                                 componentId.replace(/\//g, "~") + "/" +
-                                componentImplId.replace(/^#0.FireWidgets\//, "").replace(/\//g, "~") + "/" +
+                                ((componentImplId && componentImplId.replace(/^#0.FireWidgets\//, "").replace(/\//g, "~")) || "") + "/" +
                                 "data";
                         }
 

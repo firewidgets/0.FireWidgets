@@ -45,19 +45,28 @@ exports.forLib = function (LIB) {
 													exists &&
 													config.alwaysRebuild === false
 												) {
+													if (LIB.VERBOSE) console.log("Using built page template from:", distPath);
 													return require(distPath);
 												}
+
+												if (LIB.VERBOSE) console.log("Generate page template from:", distPath);
 
 												// Generate a new copy and cache it
 												return page.contextForUri(pageUri).then(function (pageContext) {
 													
-													return LIB.fs.statAsync(pageContext.page.data.realpath).then(function (stat) {
+													if (
+														!pageContext ||
+														pageContext.page.data.path === "/"
+													) {
+														return null;
+													}
 
-														
+/*
+													return LIB.fs.statAsync(pageContext.page.data.realpath).then(function (stat) {
 														if (stat.isDirectory()) {
 															return null;
 														}
-	
+*/	
 														return LIB.fs.readFileAsync(pageContext.page.data.realpath, "utf8").then(function (code) {
 		
 								        					function preprocess (code) {
@@ -81,7 +90,7 @@ exports.forLib = function (LIB) {
 																});
 															});
 														});
-													});
+//													});
 							                    });
 											})).then(function (tpl) {
 	                           					delete currentlyLoading[pageUri];
