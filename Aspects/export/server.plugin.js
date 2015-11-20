@@ -217,7 +217,8 @@ console.log("req.params", req.params);
 									        ) {
 									           	// We return a pre-built file if it exists and are being asked for it
 												return LIB.send(req, LIB.path.basename(path), {
-                                    				root: LIB.path.dirname(path)
+                                    				root: LIB.path.dirname(path),
+            										maxAge: config.clientCacheTTL || 0
                                     			}).on("error", next).pipe(res);
 									        }
 
