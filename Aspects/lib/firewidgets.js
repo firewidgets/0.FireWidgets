@@ -24,6 +24,9 @@ exports.forLib = function (LIB) {
     		).forEach(function () {
     			if (typeof this.node === "function") {
     				LIB.traverse(impl).set(this.path, this.node);
+    			} else
+    			if (this.key === "forceCompleteRerender") {
+    				LIB.traverse(impl).set(this.path, this.node);
     			}
     		});
         }
