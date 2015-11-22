@@ -35,6 +35,9 @@ exports.forLib = function (LIB) {
 							getPageImplementation._implementations = {};
 						}
 						var programKey = pagePath + ":" + componentId + ":" + programGroupPath + ":" + programAlias + ":" + programModule;
+
+					    if (LIB.VERBOSE) console.log("getPageImplementation()", programKey);
+
 						if (
 							!getPageImplementation._implementations[programKey] ||
 							config.alwaysRebuild !== false
@@ -44,7 +47,11 @@ exports.forLib = function (LIB) {
 
 							return getPageImplementation._implementations[programKey] = getCommonImplementation(programKey, componentContext, programGroup, programGroupPath, programAlias, programModule).then(function (impl) {
 
+        					    if (LIB.VERBOSE) console.log("loadTemplateForPage", pagePath);
+
 								return config.loadTemplateForPage(pagePath).then(function (template) {
+
+            					    if (LIB.VERBOSE) console.log("loadTemplateForPage done", pagePath, template);
 
                                     if (template) {
     									var scripts = template.getScripts();
@@ -87,8 +94,14 @@ exports.forLib = function (LIB) {
 							getCommonImplementation._implementations = {};
 						}
 						programKey = programKey + ":" + "component";
-						if (!getCommonImplementation._implementations[programKey]) {
-						    
+
+					    if (LIB.VERBOSE) console.log("getCommonImplementation()", programKey);
+
+						if (
+						    !getCommonImplementation._implementations[programKey] ||
+						    config.alwaysRebuild !== false
+						) {
+
 						    function runPrebuilt () {
 						        
 						        return LIB.Promise.try(function() {
@@ -165,7 +178,10 @@ exports.forLib = function (LIB) {
 
 						    return runPrebuilt().then(function () {
 
-    						    if (getCommonImplementation._implementations[programKey]) {
+    						    if (
+    						        getCommonImplementation._implementations[programKey] &&
+    						        config.alwaysRebuild === false
+    						    ) {
     						        return getCommonImplementation._implementations[programKey];
     						    }
 
@@ -380,7 +396,7 @@ exports.forLib = function (LIB) {
 */    							
 						    });
 						} else {
-						    console.log("Use cached component impl from key '" + programKey + "' while servicing:", programGroup, programGroupPath, programAlias);
+						    if (LIB.VERBOSE) console.log("Use cached component impl from key '" + programKey + "' while servicing:", programGroup, programGroupPath, programAlias);
 						}
 
 						return getCommonImplementation._implementations[programKey];
@@ -460,7 +476,7 @@ console.log("pointer", pointer);
 				                                        pointer,
 				                                        req.query || {}
 				                                    );
-				                                }).timeout(5 * 1000, "'getDataForPointer' took too long").then(function (result) {
+				                                }).timeout(15 * 1000, "'getDataForPointer' took too long").then(function (result) {
 				                                    res.writeHead(200, {
 				                                        "Content-Type": "application/json"
 				                                    });
