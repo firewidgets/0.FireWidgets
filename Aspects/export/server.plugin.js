@@ -161,7 +161,8 @@ exports.forLib = function (LIB) {
 
                                         if (/^loader\.js$/.test(uri)) {
 											return LIB.send(req, uri, {
-												root: LIB.path.join(__dirname, "../../node_modules/pinf-loader-js")
+												root: LIB.path.join(__dirname, "../../node_modules/pinf-loader-js"),
+        										maxAge: config.clientCacheTTL || 0
 											}).on("error", next).pipe(res);
                                         }
 
